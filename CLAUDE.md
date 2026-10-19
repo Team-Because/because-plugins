@@ -20,4 +20,6 @@ Plan and decisions: `~/.claude/plans/virtual-drifting-puzzle.md`. Architecture b
 `tools/ templates/ library/ prompts/ recipes/ studio/ .venv/ node_modules/ .env clients/<client>/videos/<video>/out/`.
 Updates re-sync the studio files and never touch `clients/`.
 
+Parked ideas live in `docs/future.md`; read it before adding a feature.
+
 Dates are DD-MM-YYYY.

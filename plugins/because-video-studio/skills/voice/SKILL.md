@@ -48,7 +48,7 @@ roughly how long before a long file.
    the printed timestamps.
 4. **Hand over honestly:** output path, loudness, sync range. Say the result was judged by measurement and needs a listen,
    especially "does it still sound like them".
-5. **Learn.** If the person says something by ear (better, worse, too bright, not them), send it with the feedback command so the
+5. **Learn.** If the person says something by ear (better, worse, too bright, not them), tell the plugin owner so the
    studio's learnings update for everyone.
 
 ## Hard rules

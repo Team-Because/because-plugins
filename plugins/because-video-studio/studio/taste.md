@@ -1,7 +1,7 @@
 # Studio taste · what Team Because accepts and rejects
 
 Read at intake, before any pitch. Every line came from a real rejection or approval on a client film.
-"The person" below is whoever asked for the video. A new rejection is sent with the feedback command so the whole team learns it.
+"The person" below is whoever asked for the video. A new rejection goes to the plugin owner, who adds it here for the whole team.
 
 ## Direction (decided before anything is built)
 1. "Motion video" means motion graphics built in code: shape, type, light, springs. Generated live action only when the person says film, ad or live action. Ask before switching medium.
