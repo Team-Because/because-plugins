@@ -22,7 +22,7 @@ function terms() {
   const dict = new Set(existsSync(dictPath) ? readFileSync(dictPath, 'utf8').toLowerCase().split('\n') : []);
   const common = new Set(['group', 'school', 'team', 'india', 'real', 'estate', 'brand', 'motion', 'studio', 'kids', 'tech',
     'electric', 'international', 'academy', 'kitchen', 'hospital', 'developers', 'educators', 'realty', 'garba', 'smile', 'venus']);
-  const inDict = (w) => dict.has(w) || dict.has(w.replace(/es$/, '')) || dict.has(w.replace(/s$/, ''));
+  const inDict = (w) => [w, w.replace(/es$/, ''), w.replace(/s$/, ''), w.replace(/d$/, ''), w.replace(/ed$/, ''), w.replace(/ing$/, ''), w.replace(/ing$/, 'e')].some((x) => dict.has(x));
   const out = new Set();
   for (const n of names) {
     if (/because/i.test(n)) continue;                          // the agency itself, not a client

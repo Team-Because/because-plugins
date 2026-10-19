@@ -20,7 +20,8 @@ const CONFIG = join(CONFIG_DIR, 'config.json');
 const config = existsSync(CONFIG) ? JSON.parse(readFileSync(CONFIG, 'utf8')) : {};
 const WS = resolve(opt('workspace') ?? config.workspace ?? join(homedir(), 'Documents', 'Because Studio'));
 const VERSION = JSON.parse(readFileSync(join(PLUGIN, '.claude-plugin', 'plugin.json'), 'utf8')).version;
-const STUDIO_PARTS = ['tools', 'templates', 'library', 'prompts', 'recipes', 'studio', 'package.json'];
+const STUDIO_PARTS = ['tools', 'templates', 'library', 'prompts', 'recipes', 'studio', 'voice', 'package.json'];
+const VOICE = args.includes('--voice');
 const VPY = WIN ? join(WS, '.venv', 'Scripts', 'python.exe') : join(WS, '.venv', 'bin', 'python');
 
 const fails = [], warns = [];
@@ -85,6 +86,24 @@ if (!CHECK && has('uv')) {
 }
 const imp = existsSync(VPY) ? run(VPY, ['-c', 'import numpy, scipy, librosa, soundfile, PIL, cv2, yaml, qrcode, beat_this, faster_whisper']) : { status: 1 };
 imp.status === 0 ? ok('Python 3.12 environment') : bad('Python tools are not installed', 'Run setup again; if it repeats, share this line with the plugin owner.');
+
+if (VOICE) {
+  // Voice tools install on first use: their own venv (torch 2.8 and older numpy pins than the main tools) + Sidon weights, about 2 GB
+  say('voice  Voice tools (Sidon speech restoration, about 2 GB once)');
+  const VVPY = WIN ? join(WS, '.venv-voice', 'Scripts', 'python.exe') : join(WS, '.venv-voice', 'bin', 'python');
+  if (!CHECK && has('uv')) {
+    if (!existsSync(VVPY)) run('uv', ['venv', '-q', '-p', '3.11', join(WS, '.venv-voice')], { stdio: 'inherit' });
+    if (existsSync(VVPY)) {
+      run('uv', ['pip', 'install', '-q', '--python', VVPY, '-r', join(PLUGIN, 'requirements', 'voice.txt')], { stdio: 'inherit' });
+      run(VVPY, ['-c', [
+        'from huggingface_hub import hf_hub_download; import transformers',
+        'for f in ("feature_extractor_cpu.pt", "decoder_cpu.pt"): hf_hub_download("sarulab-speech/sidon-v0.1", filename=f)',
+        'transformers.SeamlessM4TFeatureExtractor.from_pretrained("facebook/w2v-bert-2.0")'].join('\n')], { stdio: 'inherit' });
+    }
+  }
+  const vi = existsSync(VVPY) ? run(VVPY, ['-c', 'import torch, transformers, pedalboard, pyloudnorm, demucs']) : { status: 1 };
+  vi.status === 0 ? ok('voice tools') : bad('voice tools are not installed', 'Run setup with the voice step again; it needs about 2 GB and a good connection.');
+}
 
 say('5/6  Keys and connectors');
 const env = existsSync(join(WS, '.env')) ? readFileSync(join(WS, '.env'), 'utf8') : '';

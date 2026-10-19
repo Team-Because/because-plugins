@@ -15,8 +15,14 @@ Read `~/.because-video-studio/config.json` (Windows: `%USERPROFILE%\.because-vid
 `.venv/bin/python` on Mac and `.venv\Scripts\python.exe` on Windows. To show a file, open it with `open` (Mac) or
 `start "" "<file>"` (Windows).
 
-Engine: our own seek(t) engine builds every video. If the person names HyperFrames or Remotion, say in one line that this
-version builds with the studio engine only, and carry on.
+## Engine
+Our own seek(t) engine builds every video, with the library and every check below. Each brief carries `engine: seek-t`.
+- **HyperFrames, only when the person asks for it by name.** Write `engine: hyperframes` in that video's `brief.md`, tell them in
+  one line that our detailed checks only partly apply (the final MP4 checks and the handoff still do), install its skills once
+  with `npx --yes hyperframes@0.8.174 skills update`, and build with its own commands inside the video folder. The choice holds
+  for that video only.
+- **Remotion is not available** (a paid company licence is needed for a team this size). Say so in one line and offer HyperFrames.
+A check runs before every command in the studio and stops a render from an engine the brief did not name.
 
 ## 0 · Orient (silent)
 Read, in this order:

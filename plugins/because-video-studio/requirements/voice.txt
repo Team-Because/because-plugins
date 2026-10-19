@@ -1,0 +1,13 @@
+# Voice tools (voice/enhance.py: Sidon v0.1 + close-mic chain), in their own venv <studio>/.venv-voice, Python 3.11.
+# Exact pins from the studio's approved chain (14-10-2026). Installed on first use: setup.mjs --voice.
+torch==2.8.0
+torchaudio==2.8.0
+transformers==5.19.0
+huggingface-hub==2.2.0
+numpy==2.4.6
+scipy==1.17.1
+soundfile==0.14.0
+pedalboard==0.9.26
+pyloudnorm==0.1.1
+pyyaml==6.0.3
+demucs
