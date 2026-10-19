@@ -1,0 +1,12 @@
+{
+  "name": "because-plugins",
+  "description": "Team Because plugins for Claude Code",
+  "owner": { "name": "Team Because" },
+  "plugins": [
+    {
+      "name": "because-video-studio",
+      "source": "./plugins/because-video-studio",
+      "description": "Make on-brand motion videos for any Team Because client, on Mac or Windows."
+    }
+  ]
+}

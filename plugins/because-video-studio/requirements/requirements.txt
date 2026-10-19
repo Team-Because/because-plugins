@@ -1,0 +1,12 @@
+# Python side of the studio tools. Installed by scripts/setup.mjs into <workspace>/.venv with uv (Python 3.12),
+# never into the system Python. Pins match the studio that made the client films so far (19-10-2026).
+numpy==2.5.3
+scipy==1.18.1
+librosa==1.0.0
+soundfile==0.14.0
+pillow==12.3.0
+opencv-python-headless==5.0.0.93
+pyyaml==6.0.3
+qrcode==8.2
+beat-this==1.1.0
+faster-whisper

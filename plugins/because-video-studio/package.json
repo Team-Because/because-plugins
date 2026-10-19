@@ -1,0 +1,9 @@
+{
+  "name": "motion-studio",
+  "scripts": {},
+  "type": "module",
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  },
+  "private": true
+}

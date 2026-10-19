@@ -1,0 +1,328 @@
+# Studio library · the generic layer every client can use (Because motion studio)
+# Read by /motion at Orient and Build. Paths are relative to motion-studio/library/.
+# Three layers: this file (generic, any client) · kits/ (generic by industry or occasion) · clients/<slug>/library.yaml (one client only).
+# Run `.venv/bin/python library/check_index.py` after any change (fails on missing paths, missing fields, client names in generic files).
+#
+# Status: approved (use it) · candidate (harvested, its film's production status not known yet) · rejected (keep with reason, never reuse).
+# A piece's status follows its source film (Aman, 12-10-2026): film went to production -> approved; film did not -> rejected.
+# A generic piece is approved only when its code lives in library/pieces/ with no client name, logo, product or colour in it.
+# A candidate may still point at its source inside a client video (`source:`); it is extracted when approved.
+
+rules:
+  - A toolbox, not a guideline. The reference and the picked concept decide every shot; use a piece only when a shot needs that same move. Never bend a concept to fit a piece.
+  - When a shot matches a piece, reuse it before rewriting it.
+  - A piece is reusable only if its `event` says what happens in it (X becomes Y on the beat), not how it looks.
+  - Generic pieces take colours, fonts and logos as parameters from the client's brand/brand.json. Nothing brand-specific is hard-coded.
+  - A client piece never appears in another client's video. Moving a piece from a client to this file means stripping the brand first.
+
+engine:
+  - id: engine-starter
+    status: approved
+    kind: engine
+    event: "A new video starts with the seek(t) page, the one timing table T, the film contract (cues, sync, smooth) and live preview"
+    file: ../templates/engine/index.html
+    use_when: [every new video, copied by tools/new-video.mjs]
+    tags: [engine, seek, contract]
+  - id: springs
+    status: approved
+    kind: engine
+    event: "Any move settles with mass: snappy for UI, default for cards and camera, heavy for type and logos, playful for mascots"
+    file: ../templates/engine/motion.js
+    api: "spring(t, 'snappy'|'default'|'heavy'|'playful'), track(t, keys), indicator, swapAlpha, loopT, rng"
+    use_when: [every move]
+    tags: [motion, spring]
+  - id: blocks
+    status: approved
+    kind: engine
+    event: "Shared drawing helpers: a line of type springs in, captions word by word, a pill, a band, a bloom, a lockup, a hop with squash, a clip frame"
+    file: ../templates/engine/blocks.js
+    api: "rec, win, softSpring, softTrack, hop, squash, flash, cover, prop, line, pill, wordCaptions, band, bloom, lockup, clipFrame"
+    use_when: [before writing any helper]
+    tags: [type, captions, lockup, bloom, camera]
+
+tools:
+  - {id: pieces-core, file: pieces/core.js, event: "Shared maths, easings and cover() that every generic piece loads first", status: approved, kind: engine}
+  - {id: pieces-demo, file: pieces/demo.html, event: "Every generic piece runs on a building drawn in code, in any format (test page, no client asset)", status: approved, kind: tool}
+  - {id: qr, file: ../tools/qr.py, event: "Any URL becomes a window.QR grid for the QR end card", status: approved, kind: tool}
+  - {id: check, file: ../tools/check.mjs, event: "Every format is audited for cut edges, sync, smoothness and frame 0 before anyone sees anything", status: approved, kind: tool}
+  - {id: ship, file: ../tools/ship.mjs, event: "Every format renders, sound mixes to -14 LUFS, poster and contact sheet are written", status: approved, kind: tool}
+  - {id: sfx, file: ../tools/sfx.mjs, event: "Cues become a seeded sound file: click, pop, thump, whoosh, tick, hit, rise, beep, final", status: approved, kind: tool}
+  - {id: score, file: ../tools/score.py, event: "A cue plan becomes a seeded music track made in code (cine, fusion, santoor, pulse), hits on the --note grid so cuts land on the music; no samples, no licence", status: approved, kind: tool}
+  - {id: mux, file: ../tools/mux.mjs, event: "Sound goes under the picture at -14 LUFS with the true peak at or under -1 dB", status: approved, kind: tool}
+  - {id: beats, file: ../tools/beats.py, event: "A supplied track becomes beats.json, phase-checked on the kick", status: approved, kind: tool}
+  - {id: grab-brand, file: ../tools/grab-brand.mjs, event: "A client URL becomes brand.json plus logo, hero and page captures", status: approved, kind: tool}
+  - {id: extract-frames, file: ../tools/extract-frames.mjs, event: "A reference video or folder becomes contact sheets and measured cuts", status: approved, kind: tool}
+
+recipes:   # ad structures (layer 2), one file per kind of film
+  - {id: festive-wish, file: ../recipes/festive-wish.md, status: approved, kind: recipe, event: "The product becomes the festive object; one wish line; lockup"}
+  - {id: product-teaser, file: ../recipes/product-teaser.md, status: approved, kind: recipe, event: "Features switch on one per beat around the real product; lockup"}
+  - {id: mascot-explainer, file: ../recipes/mascot-explainer.md, status: approved, kind: recipe, event: "A mascot acts out each line of the explanation"}
+
+looks:     # AI generation recipes: model, prompt core, cost, known failures
+  - {id: xray, file: looks/xray.md, status: approved, kind: look, event: "A real product becomes a CT-scan render with the same silhouette, then assembles itself", tags: [product, premium, ev, gadget], cost_usd: 1.70}
+  - {id: chrome-glow, file: looks/chrome-glow.md, status: approved, kind: look, event: "Features become chrome objects whose brand-colour light switches on per beat", tags: [premium, feature, product], cost_usd: 2.90}
+
+kits:      # layer 2: generic by industry or occasion
+  - {id: real-estate, file: kits/industries/real-estate.md, status: approved, kind: kit, event: "A property ad: real renders move, one number proves it, RERA end card"}
+  - {id: ev-auto, file: kits/industries/ev-auto.md, status: approved, kind: kit, event: "An EV ad: real product in premium light, range said the maker's way, prebook end card"}
+  - {id: occ-diwali, file: kits/occasions/diwali.md, status: approved, kind: occasion-kit, event: "A Diwali video: the product becomes the light or the gift, never a diya parade", checked: "12-10-2026"}
+  - {id: occ-navratri-dussehra, file: kits/occasions/navratri-dussehra.md, status: approved, kind: occasion-kit, event: "A Navratri or Dussehra series: the product joins the night, no deity mascot", checked: "12-10-2026"}
+  - {id: occ-holi, file: kits/occasions/holi.md, status: approved, kind: occasion-kit, event: "A Holi video: the product becomes the colour or survives it, powder built in code", checked: "12-10-2026"}
+  - {id: occ-ganesh-chaturthi, file: kits/occasions/ganesh-chaturthi.md, status: approved, kind: occasion-kit, event: "A Ganesh Chaturthi video: new beginnings, never the deity next to the product", checked: "12-10-2026"}
+  - {id: occ-raksha-bandhan, file: kits/occasions/raksha-bandhan.md, status: approved, kind: occasion-kit, event: "A Raksha Bandhan video: siblings as equals, the product is the gift", checked: "12-10-2026"}
+  - {id: occ-independence-day, file: kits/occasions/independence-day.md, status: approved, kind: occasion-kit, event: "An Independence Day video: freedom as an idea, no flag (Flag Code 2.1(i))", checked: "12-10-2026"}
+  - {id: occ-republic-day, file: kits/occasions/republic-day.md, status: approved, kind: occasion-kit, event: "A Republic Day video: the Constitution's idea, no flag or emblem", checked: "12-10-2026"}
+  - {id: occ-eid, file: kits/occasions/eid.md, status: approved, kind: occasion-kit, event: "An Eid video: the product joins the visit, scheduled to the moon sighting", checked: "12-10-2026"}
+  - {id: occ-christmas, file: kits/occasions/christmas.md, status: approved, kind: occasion-kit, event: "A Christmas video: Indian Christmas (star lanterns, plum cake), the product is the gift", checked: "12-10-2026"}
+  - {id: occ-new-year, file: kits/occasions/new-year.md, status: approved, kind: occasion-kit, event: "A New Year video: a fresh start or a real year-in-review, countdown Lottie", checked: "12-10-2026"}
+  - {id: occ-onam, file: kits/occasions/onam.md, status: approved, kind: occasion-kit, event: "An Onam video: the product on the sadya leaf or in the pookalam", checked: "12-10-2026"}
+  - {id: occ-sankranti-uttarayan-pongal, file: kits/occasions/sankranti-uttarayan-pongal.md, status: approved, kind: occasion-kit, event: "A Sankranti, Uttarayan or Pongal video: the kite fight, the overflowing pot", checked: "12-10-2026"}
+  - {id: occ-womens-day, file: kits/occasions/womens-day.md, status: approved, kind: occasion-kit, event: "A Women's Day video: a real story or policy with numbers, no pink discount", checked: "12-10-2026"}
+  - {id: occ-mothers-day, file: kits/occasions/mothers-day.md, status: approved, kind: occasion-kit, event: "A Mother's Day video: mothers as people, the gift is for her", checked: "12-10-2026"}
+
+lottie:    # library/lottie/*.json; preview library/previews/lottie-sample.png; play with library/lottie/player/lottie.min.js
+  - {id: lottie-player, file: lottie/player/lottie.min.js, status: approved, kind: player, event: "Plays any Lottie JSON (goToAndStop for seek(t))", source_url: "https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js", author: "Airbnb (lottie-web 5.12.2)", licence: "MIT (https://github.com/airbnb/lottie-web/blob/master/LICENSE.md)", checked: "12-10-2026"}
+  - {id: recolour, file: ../tools/recolour.py, status: approved, kind: tool, event: "A copy of any library Lottie or icon in a client accent (saturated colours follow the accent, whites and greys stay); the generic file never changes"}
+  - {id: lottie-sheet, file: ../tools/lottie-sheet.mjs, status: approved, kind: tool, event: "Any batch of Lottie files becomes a labelled contact sheet at the middle frame, on white and on dark"}
+  - {id: cursor-click-blue, file: lottie/cursor-click-blue.json, status: approved, kind: lottie, event: "A blue pointer moves in and clicks", tags: [cta, click, cursor, ui], source_url: "https://lottiefiles.com/free-animation/cursor-animation-Imiqm1nBxx", author: "Faisal Nawaz", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-sample.png}
+  - {id: check-ring-draw, file: lottie/check-ring-draw.json, status: approved, kind: lottie, event: "A green ring draws, then a tick draws inside it", tags: [success, check, done], source_url: "https://lottiefiles.com/free-animation/check-mark-success-h9SJbwh6ky", author: "Travis Gregory", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-sample.png}
+  - {id: confetti-burst, file: lottie/confetti-burst.json, status: approved, kind: lottie, event: "Confetti bursts outward on a transparent ground", tags: [celebration, confetti, launch], source_url: "https://lottiefiles.com/free-animation/confetti-effects-lottie-animation-2naH1Qyz3l", author: "SM Rony", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-sample.png}
+  - {id: chart-growth, file: lottie/chart-growth.json, status: approved, kind: lottie, event: "Three bars rise and an arrow sweeps up over them", tags: [growth, chart, results], source_url: "https://lottiefiles.com/free-animation/growth-chart-7g4UY8O9D1", author: "Zakaria Harry Utomo", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-sample.png}
+  - {id: diya-flame, file: lottie/diya-flame.json, status: approved, kind: lottie, event: "A diya flame lights and flickers with rising sparks", tags: [festive, diwali, diya, light], source_url: "https://lottiefiles.com/free-animation/lightening-diya-oil-lamp-1O8T4JT4iy", author: "Vishal Sehgal", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-sample.png}
+  - {id: arrow-chevrons-down, file: lottie/arrow-chevrons-down.json, status: approved, kind: lottie, event: "Yellow chevrons pulse downward (scroll cue)", tags: [arrow, scroll, cta], source_url: "https://lottiefiles.com/free-animation/scroll-down-arrow-bkBfyktygm", author: "Fabrizio Tanjung", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: check-burst, file: lottie/check-burst.json, status: approved, kind: lottie, event: "A green check pops with coloured dots around it", tags: [success, check], source_url: "https://lottiefiles.com/free-animation/check-mark-w6Yj6rmx48", author: "Bilal", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: confetti-fall, file: lottie/confetti-fall.json, status: approved, kind: lottie, event: "Light confetti falls on a transparent ground", tags: [celebration, confetti], source_url: "https://lottiefiles.com/free-animation/confetti-3ofTs67sBx", author: "Shubh Dubey", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: doc-approved, file: lottie/doc-approved.json, status: approved, kind: lottie, event: "A glass document gets a green check", tags: [approved, document, success], source_url: "https://lottiefiles.com/free-animation/glassmorphism-document-lottie-animation-FWGQdxTf9E", author: "SM Rony", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: idea-bulb, file: lottie/idea-bulb.json, status: approved, kind: lottie, event: "A line bulb lights with rays", tags: [idea, insight], source_url: "https://lottiefiles.com/free-animation/idea-bulb-QT00q9HsP4", author: "Arpan", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: idea-bulb-rocket, file: lottie/idea-bulb-rocket.json, status: approved, kind: lottie, event: "A light bulb takes off like a rocket", tags: [idea, launch], source_url: "https://lottiefiles.com/free-animation/light-bulb-66DIqDnhr1", author: "SM", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: loader-dots-spiral, file: lottie/loader-dots-spiral.json, status: approved, kind: lottie, event: "Red dots spiral round (loader)", tags: [loader, wait], source_url: "https://lottiefiles.com/free-animation/loading-WEOp0qe5kL", author: "gojo", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: lock-open-tick, file: lottie/lock-open-tick.json, status: approved, kind: lottie, event: "A padlock opens and turns into a green tick", tags: [unlock, secure, success], source_url: "https://lottiefiles.com/free-animation/lock-opens-and-turns-into-a-green-tick-4CwYRmG89G", author: "Alex", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: sparkles-blue, file: lottie/sparkles-blue.json, status: approved, kind: lottie, event: "Three sparkles twinkle in turn", tags: [sparkle, accent, festive], source_url: "https://lottiefiles.com/free-animation/star-loader-2-GGPhWoPNHi", author: "Brian", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: mail-notification, file: lottie/mail-notification.json, status: approved, kind: lottie, event: "A mail icon gets a red notification badge", tags: [notification, email, message], source_url: "https://lottiefiles.com/free-animation/email-eoEI18gP2h", author: "manju", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: rocket-launch, file: lottie/rocket-launch.json, status: approved, kind: lottie, event: "A red-white rocket launches upward", tags: [launch, rocket, growth], source_url: "https://lottiefiles.com/free-animation/japan-rocket-lottie-json-animation-R0uHPn4UFa", author: "Weblodge", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: success-check-confetti, file: lottie/success-check-confetti.json, status: approved, kind: lottie, event: "A green check lands with confetti", tags: [success, celebration], source_url: "https://lottiefiles.com/free-animation/success-confetti-f5PdexvrBK", author: "Deepesh Reddy", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: trophy, file: lottie/trophy.json, status: approved, kind: lottie, event: "An orange trophy appears with sparkles", tags: [award, win, achievement], source_url: "https://lottiefiles.com/free-animation/trophy-yEGPe40FVr", author: "Mahendra", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: target-dart-blue, file: lottie/target-dart-blue.json, status: approved, kind: lottie, event: "A dart hits the centre of a blue target", tags: [target, goal, accuracy], source_url: "https://lottiefiles.com/free-animation/target-LxSJIlrZZi", author: "manju", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: typing-bubble, file: lottie/typing-bubble.json, status: approved, kind: lottie, event: "A chat bubble shows typing dots (no app logo)", tags: [chat, message, typing, whatsapp-style], source_url: "https://lottiefiles.com/free-animation/typing-indicator-TAQub8NgTQ", author: "Mike Litecky", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: typing-dots, file: lottie/typing-dots.json, status: approved, kind: lottie, event: "Grey typing dots bounce", tags: [chat, typing], source_url: "https://lottiefiles.com/free-animation/chat-typing-indicator-S3mtGJygid", author: "bady qb", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: spinner-teal, file: lottie/spinner-teal.json, status: approved, kind: lottie, event: "A teal spinner turns (loader)", tags: [loader, wait], source_url: "https://lottiefiles.com/free-animation/loading-gJxFCc5SvU", author: "Kang", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: notification-bell-badge, file: lottie/notification-bell-badge.json, status: approved, kind: lottie, event: "A bell rings and a red count badge pops on it", tags: [notification, alert, reminder], source_url: "https://lottiefiles.com/free-animation/notification-bell-tUi6aMJK6M", author: "MN", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: notification-bell, file: lottie/notification-bell.json, status: approved, kind: lottie, event: "A yellow bell swings and rings", tags: [notification, alert], source_url: "https://lottiefiles.com/free-animation/notification-bell-ST6XII7N1L", author: "Ajay Avinash", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: add-to-cart, file: lottie/add-to-cart.json, status: approved, kind: lottie, event: "A cart icon in a blue circle gets an item dot", tags: [ecommerce, cart, buy], source_url: "https://lottiefiles.com/free-animation/add-to-cart-1c7rzxPo8T", author: "Mahendra", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: countdown-3-2-1, file: lottie/countdown-3-2-1.json, status: approved, kind: lottie, event: "A ring counts down 3, 2, 1", tags: [countdown, launch, timer], source_url: "https://lottiefiles.com/free-animation/countdown-from-3-tIzbOfFCQA", author: "Dilara Yılmaz", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: delivery-truck, file: lottie/delivery-truck.json, status: approved, kind: lottie, event: "A line-drawn delivery truck drives in place", tags: [delivery, shipping, logistics], source_url: "https://lottiefiles.com/free-animation/delivery-truck-loading-exporting-Q2WoVTiHUy", author: "Emas Didik Prasetyo", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: gift-burst, file: lottie/gift-burst.json, status: approved, kind: lottie, event: "A gift box opens with confetti", tags: [gift, offer, festive, reward], source_url: "https://lottiefiles.com/free-animation/gift-YgNPBq7kBi", author: "Daniel Bogdanov", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: hearts-float, file: lottie/hearts-float.json, status: approved, kind: lottie, event: "Hearts float up and pop (social reactions)", tags: [like, love, social, engagement], source_url: "https://lottiefiles.com/free-animation/hearts-feedback-yEHli0OrLF", author: "Andrew Mckay", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: kite-flying, file: lottie/kite-flying.json, status: approved, kind: lottie, event: "A colourful kite flutters with its tail", tags: [uttarayan, sankranti, festive, kite], source_url: "https://lottiefiles.com/free-animation/kite-flying-4biF83flLk", author: "MD Abdur", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: lantern-hanging, file: lottie/lantern-hanging.json, status: approved, kind: lottie, event: "A line lantern sways on its string", tags: [diwali, lantern, festive], source_url: "https://lottiefiles.com/free-animation/diwali-lantern-BKAtThH6Jo", author: "LottieFiles", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: lanterns-crescent, file: lottie/lanterns-crescent.json, status: approved, kind: lottie, event: "A row of small lanterns and crescent moons hang and sway", tags: [eid, ramadan, festive, lights], source_url: "https://lottiefiles.com/free-animation/lights-raaw1YOy8N", author: "Nazrin", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: megaphone, file: lottie/megaphone.json, status: approved, kind: lottie, event: "A blue megaphone pulses an announcement", tags: [announcement, marketing, launch], source_url: "https://lottiefiles.com/free-animation/megaphone-8x4Nyhnpat", author: "SejaUP.online", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: money-stack, file: lottie/money-stack.json, status: approved, kind: lottie, event: "A stack of notes drops and settles", tags: [money, savings, finance], source_url: "https://lottiefiles.com/free-animation/money-stack-WJj4bJvO8V", author: "JuanMakes", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: coin-spin, file: lottie/coin-spin.json, status: approved, kind: lottie, event: "A gold coin spins", tags: [money, coin, reward], source_url: "https://lottiefiles.com/free-animation/coin-cgBuwIcovc", author: "Saygın Mağdala", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: discount-tag, file: lottie/discount-tag.json, status: approved, kind: lottie, event: "A yellow percent tag swings with sparkles", tags: [offer, discount, sale], source_url: "https://lottiefiles.com/free-animation/discount-icon-Ze1KM0LHIf", author: "Herman Cheng", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: sale-badge, file: lottie/sale-badge.json, status: approved, kind: lottie, event: "A SALE badge bounces in with sparkles", tags: [sale, offer, retail], source_url: "https://lottiefiles.com/free-animation/sale-Lilh8c59sW", author: "manju", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: location-pin, file: lottie/location-pin.json, status: approved, kind: lottie, event: "A red map pin drops onto a green ring", tags: [location, map, visit], source_url: "https://lottiefiles.com/free-animation/location-lottie-animation-dA1gfjnb3q", author: "SM Rony", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: play-button, file: lottie/play-button.json, status: approved, kind: lottie, event: "A pink play button pulses", tags: [video, play, watch], source_url: "https://lottiefiles.com/free-animation/play-button-UbFGHH2aab", author: "mohamd shaghouri", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: qr-scan, file: lottie/qr-scan.json, status: approved, kind: lottie, event: "A scanner frame reads a QR code", tags: [qr, scan, enquiry], source_url: "https://lottiefiles.com/free-animation/qr-scan-successful-Z10hsYqT3k", author: "Crimson Motion", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: five-stars, file: lottie/five-stars.json, status: approved, kind: lottie, event: "Five stars fill in one by one", tags: [rating, review, trust], source_url: "https://lottiefiles.com/free-animation/5-stars-d2p58h47tA", author: "Corbin Scott", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+  - {id: star-burst, file: lottie/star-burst.json, status: approved, kind: lottie, event: "Coloured stars burst outward", tags: [celebration, festive, accent], source_url: "https://lottiefiles.com/free-animation/fireworks-icon-fjvwCabz9N", author: "Anoop Kumar", licence: "Lottie Simple License (commercial use allowed; https://lottiefiles.com/page/license)", checked: "12-10-2026", preview: previews/lottie-library.png}
+
+fonts:     # library/fonts/<family>/; preview previews/fonts.png. Hindi/Devanagari text only in Mukta or Kalam (the others fall back to a system face)
+  - {id: font-playfairdisplay, file: "fonts/playfairdisplay/PlayfairDisplay[wght].ttf", status: approved, kind: font, event: "Playfair Display: display serif", source_url: "https://github.com/google/fonts/tree/main/ofl/playfairdisplay", author: "Claus Eggers Sørensen", licence: "SIL Open Font License 1.1 (OFL.txt next to the font)", checked: "12-10-2026", preview: previews/fonts.png}
+  - {id: font-bebasneue, file: "fonts/bebasneue/BebasNeue-Regular.ttf", status: approved, kind: font, event: "Bebas Neue: display condensed caps", source_url: "https://github.com/google/fonts/tree/main/ofl/bebasneue", author: "Dharma Type", licence: "SIL Open Font License 1.1 (OFL.txt next to the font)", checked: "12-10-2026", preview: previews/fonts.png}
+  - {id: font-syne, file: "fonts/syne/Syne[wght].ttf", status: approved, kind: font, event: "Syne: display geometric", source_url: "https://github.com/google/fonts/tree/main/ofl/syne", author: "Bonjour Monde", licence: "SIL Open Font License 1.1 (OFL.txt next to the font)", checked: "12-10-2026", preview: previews/fonts.png}
+  - {id: font-inter, file: "fonts/inter/Inter[opsz,wght].ttf", status: approved, kind: font, event: "Inter: UI sans", source_url: "https://github.com/google/fonts/tree/main/ofl/inter", author: "Rasmus Andersson", licence: "SIL Open Font License 1.1 (OFL.txt next to the font)", checked: "12-10-2026", preview: previews/fonts.png}
+  - {id: font-manrope, file: "fonts/manrope/Manrope[wght].ttf", status: approved, kind: font, event: "Manrope: UI sans", source_url: "https://github.com/google/fonts/tree/main/ofl/manrope", author: "Mikhail Sharanda", licence: "SIL Open Font License 1.1 (OFL.txt next to the font)", checked: "12-10-2026", preview: previews/fonts.png}
+  - {id: font-kalam, file: "fonts/kalam/Kalam-Regular.ttf", status: approved, kind: font, event: "Kalam: handwriting, Latin + Devanagari", source_url: "https://github.com/google/fonts/tree/main/ofl/kalam", author: "Indian Type Foundry", licence: "SIL Open Font License 1.1 (OFL.txt next to the font)", checked: "12-10-2026", preview: previews/fonts.png}
+  - {id: font-mukta, file: "fonts/mukta/Mukta-Regular.ttf", status: approved, kind: font, event: "Mukta: Devanagari + Latin sans", source_url: "https://github.com/google/fonts/tree/main/ofl/mukta", author: "Ek Type", licence: "SIL Open Font License 1.1 (OFL.txt next to the font)", checked: "12-10-2026", preview: previews/fonts.png}
+
+logos:     # third-party platform marks, nominative use only (name the platform, never imply endorsement); preview previews/logos-platforms.png. LinkedIn: not in Simple Icons (gap)
+  - {id: logo-instagram, file: logos/instagram.svg, status: approved, kind: platform-mark, event: "Instagram mark, brand colour, to name the platform", source_url: "https://cdn.simpleicons.org/instagram", author: "Simple Icons (mark owned by its company)", licence: "Simple Icons file CC0 1.0; the mark is a trademark: nominative use only", checked: "12-10-2026", preview: previews/logos-platforms.png}
+  - {id: logo-instagram-white, file: logos/instagram-white.svg, status: approved, kind: platform-mark, event: "Instagram mark, white, for dark grounds, to name the platform", source_url: "https://cdn.simpleicons.org/instagram/white", author: "Simple Icons (mark owned by its company)", licence: "Simple Icons file CC0 1.0; the mark is a trademark: nominative use only", checked: "12-10-2026", preview: previews/logos-platforms.png}
+  - {id: logo-facebook, file: logos/facebook.svg, status: approved, kind: platform-mark, event: "Facebook mark, brand colour, to name the platform", source_url: "https://cdn.simpleicons.org/facebook", author: "Simple Icons (mark owned by its company)", licence: "Simple Icons file CC0 1.0; the mark is a trademark: nominative use only", checked: "12-10-2026", preview: previews/logos-platforms.png}
+  - {id: logo-facebook-white, file: logos/facebook-white.svg, status: approved, kind: platform-mark, event: "Facebook mark, white, for dark grounds, to name the platform", source_url: "https://cdn.simpleicons.org/facebook/white", author: "Simple Icons (mark owned by its company)", licence: "Simple Icons file CC0 1.0; the mark is a trademark: nominative use only", checked: "12-10-2026", preview: previews/logos-platforms.png}
+  - {id: logo-youtube, file: logos/youtube.svg, status: approved, kind: platform-mark, event: "Youtube mark, brand colour, to name the platform", source_url: "https://cdn.simpleicons.org/youtube", author: "Simple Icons (mark owned by its company)", licence: "Simple Icons file CC0 1.0; the mark is a trademark: nominative use only", checked: "12-10-2026", preview: previews/logos-platforms.png}
+  - {id: logo-youtube-white, file: logos/youtube-white.svg, status: approved, kind: platform-mark, event: "Youtube mark, white, for dark grounds, to name the platform", source_url: "https://cdn.simpleicons.org/youtube/white", author: "Simple Icons (mark owned by its company)", licence: "Simple Icons file CC0 1.0; the mark is a trademark: nominative use only", checked: "12-10-2026", preview: previews/logos-platforms.png}
+  - {id: logo-whatsapp, file: logos/whatsapp.svg, status: approved, kind: platform-mark, event: "Whatsapp mark, brand colour, to name the platform", source_url: "https://cdn.simpleicons.org/whatsapp", author: "Simple Icons (mark owned by its company)", licence: "Simple Icons file CC0 1.0; the mark is a trademark: nominative use only", checked: "12-10-2026", preview: previews/logos-platforms.png}
+  - {id: logo-whatsapp-white, file: logos/whatsapp-white.svg, status: approved, kind: platform-mark, event: "Whatsapp mark, white, for dark grounds, to name the platform", source_url: "https://cdn.simpleicons.org/whatsapp/white", author: "Simple Icons (mark owned by its company)", licence: "Simple Icons file CC0 1.0; the mark is a trademark: nominative use only", checked: "12-10-2026", preview: previews/logos-platforms.png}
+  - {id: logo-google, file: logos/google.svg, status: approved, kind: platform-mark, event: "Google mark, brand colour, to name the platform", source_url: "https://cdn.simpleicons.org/google", author: "Simple Icons (mark owned by its company)", licence: "Simple Icons file CC0 1.0; the mark is a trademark: nominative use only", checked: "12-10-2026", preview: previews/logos-platforms.png}
+  - {id: logo-google-white, file: logos/google-white.svg, status: approved, kind: platform-mark, event: "Google mark, white, for dark grounds, to name the platform", source_url: "https://cdn.simpleicons.org/google/white", author: "Simple Icons (mark owned by its company)", licence: "Simple Icons file CC0 1.0; the mark is a trademark: nominative use only", checked: "12-10-2026", preview: previews/logos-platforms.png}
+
+icons:     # Lucide 1.55.0 UI icons (stroke, currentColor); preview previews/icons-lucide.png; licence file icons/LICENSE-lucide.txt
+  - {id: icon-arrow-right, file: icons/arrow-right.svg, status: approved, kind: icon, event: "Lucide arrow right icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/arrow-right.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-badge-check, file: icons/badge-check.svg, status: approved, kind: icon, event: "Lucide badge check icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/badge-check.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-battery-charging, file: icons/battery-charging.svg, status: approved, kind: icon, event: "Lucide battery charging icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/battery-charging.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-bell, file: icons/bell.svg, status: approved, kind: icon, event: "Lucide bell icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/bell.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-bike, file: icons/bike.svg, status: approved, kind: icon, event: "Lucide bike icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/bike.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-building-2, file: icons/building-2.svg, status: approved, kind: icon, event: "Lucide building 2 icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/building-2.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-cable, file: icons/cable.svg, status: approved, kind: icon, event: "Lucide cable icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/cable.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-calendar-clock, file: icons/calendar-clock.svg, status: approved, kind: icon, event: "Lucide calendar clock icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/calendar-clock.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-calendar, file: icons/calendar.svg, status: approved, kind: icon, event: "Lucide calendar icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/calendar.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-car, file: icons/car.svg, status: approved, kind: icon, event: "Lucide car icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/car.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-check, file: icons/check.svg, status: approved, kind: icon, event: "Lucide check icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/check.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-chevron-down, file: icons/chevron-down.svg, status: approved, kind: icon, event: "Lucide chevron down icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/chevron-down.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-clock, file: icons/clock.svg, status: approved, kind: icon, event: "Lucide clock icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/clock.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-download, file: icons/download.svg, status: approved, kind: icon, event: "Lucide download icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/download.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-gift, file: icons/gift.svg, status: approved, kind: icon, event: "Lucide gift icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/gift.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-graduation-cap, file: icons/graduation-cap.svg, status: approved, kind: icon, event: "Lucide graduation cap icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/graduation-cap.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-heart, file: icons/heart.svg, status: approved, kind: icon, event: "Lucide heart icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/heart.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-house, file: icons/house.svg, status: approved, kind: icon, event: "Lucide house icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/house.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-indian-rupee, file: icons/indian-rupee.svg, status: approved, kind: icon, event: "Lucide indian rupee icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/indian-rupee.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-lightbulb, file: icons/lightbulb.svg, status: approved, kind: icon, event: "Lucide lightbulb icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/lightbulb.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-mail, file: icons/mail.svg, status: approved, kind: icon, event: "Lucide mail icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/mail.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-map-pin, file: icons/map-pin.svg, status: approved, kind: icon, event: "Lucide map pin icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/map-pin.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-message-circle, file: icons/message-circle.svg, status: approved, kind: icon, event: "Lucide message circle icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/message-circle.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-percent, file: icons/percent.svg, status: approved, kind: icon, event: "Lucide percent icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/percent.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-phone, file: icons/phone.svg, status: approved, kind: icon, event: "Lucide phone icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/phone.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-play, file: icons/play.svg, status: approved, kind: icon, event: "Lucide play icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/play.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-plug, file: icons/plug.svg, status: approved, kind: icon, event: "Lucide plug icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/plug.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-qr-code, file: icons/qr-code.svg, status: approved, kind: icon, event: "Lucide qr code icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/qr-code.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-rocket, file: icons/rocket.svg, status: approved, kind: icon, event: "Lucide rocket icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/rocket.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-search, file: icons/search.svg, status: approved, kind: icon, event: "Lucide search icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/search.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-share-2, file: icons/share-2.svg, status: approved, kind: icon, event: "Lucide share 2 icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/share-2.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-shield-check, file: icons/shield-check.svg, status: approved, kind: icon, event: "Lucide shield check icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/shield-check.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-shopping-cart, file: icons/shopping-cart.svg, status: approved, kind: icon, event: "Lucide shopping cart icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/shopping-cart.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-sparkles, file: icons/sparkles.svg, status: approved, kind: icon, event: "Lucide sparkles icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/sparkles.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-star, file: icons/star.svg, status: approved, kind: icon, event: "Lucide star icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/star.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-tag, file: icons/tag.svg, status: approved, kind: icon, event: "Lucide tag icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/tag.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-trophy, file: icons/trophy.svg, status: approved, kind: icon, event: "Lucide trophy icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/trophy.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-truck, file: icons/truck.svg, status: approved, kind: icon, event: "Lucide truck icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/truck.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-user, file: icons/user.svg, status: approved, kind: icon, event: "Lucide user icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/user.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-users, file: icons/users.svg, status: approved, kind: icon, event: "Lucide users icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/users.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+  - {id: icon-zap, file: icons/zap.svg, status: approved, kind: icon, event: "Lucide zap icon, stroke in currentColor", source_url: "https://unpkg.com/lucide-static@1.55.0/icons/zap.svg", author: "Lucide Icons and Contributors", licence: "ISC (https://lucide.dev/license)", checked: "12-10-2026", preview: previews/icons-lucide.png}
+
+formats:   # canvas sizes the engine renders; safe zones are a P0 gap (source to verify)
+  - {id: reel-9x16, size: [1080, 1920], use: "Instagram Reels, YouTube Shorts, master for social"}
+  - {id: feed-1x1, size: [1080, 1080], use: "Instagram / Facebook feed"}
+  - {id: wide-16x9, size: [1920, 1080], use: "YouTube, OTT / TV (TV-readable type)"}
+  - {id: led-wall-custom, size: [custom, custom], use: "Event LED screens: any size the venue gives (e.g. 1216x760 food-area wall, 2280x1216 stage wall, 24 fps, from a production festive film). Add the size to window.film formats; check legibility at the wall's viewing distance"}
+  - {id: reels-safe-zone, size: [1080, 1920], use: "Meta's own page (read 12-10-2026, https://www.facebook.com/business/help/980593475366490/): for 9:16 ads in Stories, Reels and Feed keep the top, bottom and side edges free of key elements, text and logos; check with the Safe Zone guardrail in Ads Manager; taller phones may zoom and crop outside the zone. With disclaimers on a Reels ad (RERA lines, range or offer conditions), keep the bottom 40% free of text and logos. The page gives no other percentages: the studio's 14% top / 35% bottom / 6% sides (from a production property film) is unconfirmed studio practice, not Meta's number"}
+
+pieces:    # scenes harvested from finished films; status follows the film's production status in its client's campaigns.md
+  - id: floor-build
+    status: approved
+    file: pieces/floor-build.js
+    production: "30 s property launch film, 16:9 OTT cut, delivered (Aman, 12-10-2026)"
+    kind: scene
+    event: "A building assembles floor by floor on its real render, then the camera pushes into its crown"
+    use_when: [property reveal, construction, growth]
+    tags: [real-estate, reveal, build]
+  - id: address-transitions
+    status: approved
+    file: pieces/list-transitions.js
+    production: "30 s property launch film, 16:9 OTT cut, delivered (Aman, 12-10-2026)"
+    kind: transition
+    event: "Four places in 10 s, each entering with its own mask transition and a gauge showing which one it is"
+    use_when: [amenities, zones, floors, locations, a list of 3-5 places]
+    tags: [transition, list, real-estate]
+  - id: counter-proof
+    status: approved
+    file: pieces/counter-proof.js
+    production: "30 s property launch film, 16:9 OTT cut, delivered (Aman, 12-10-2026)"
+    kind: scene
+    event: "The camera tilts up a facade while a counter runs from 0 to the proof number and lands on a downbeat"
+    use_when: [height, count, area, any one number that proves the claim]
+    tags: [number, proof, counter]
+  - id: qr-endcard
+    status: approved
+    file: pieces/qr-endcard.js
+    production: "30 s property launch film, 16:9 OTT cut, delivered (Aman, 12-10-2026)"
+    kind: endcard
+    event: "Two wordmarks, a CTA pill, a phone number and a QR build in 1.5 s, then hold; a compliance line sits at the bottom"
+    use_when: [any ad that ends in an enquiry: real estate, events, admissions]
+    tags: [endcard, qr, cta, compliance]
+  - id: type-rise-wipe
+    status: approved
+    file: pieces/type.js
+    production: "30 s property launch film, 16:9 OTT cut, delivered (Aman, 12-10-2026)"
+    kind: type
+    event: "A headline rises letter by letter with a stagger, or wipes in behind a rule line"
+    use_when: [premium headlines, hooks]
+    tags: [type, headline]
+  - id: circle-match-cut
+    status: approved
+    kind: scene
+    event: "Round objects flash past in hard match cuts inside one locked circle, accelerating; the last circle is the product"
+    use_when: [a shot list that calls for match cuts on circular shapes]
+    tags: [match-cut, montage, festive, product]
+    file: pieces/circle-match-cut.js
+    production: "20 s festive reel, 9:16, delivered (Aman, 12-10-2026)"
+  - id: powered-by-card
+    status: approved
+    kind: endcard
+    event: "An event partner's mark springs in on the partner's own palette, POWERED BY lands, then the brand's logo rises in"
+    use_when: [sponsorships, event partnerships, co-branded end cards]
+    tags: [endcard, co-brand, partner]
+    file: pieces/powered-by.js
+    production: "20 s festive reel, 9:16, delivered (Aman, 12-10-2026)"
+  - id: collage-kit
+    status: approved
+    kind: kit
+    event: "Paper-desk language: grid paper, tape, stickers, chat bubbles, marker highlight, dashed arrow, ring burst, slam-in, impact shake, word rise, handwriting"
+    use_when: [a playful or crafted brand world, highlights and callouts]
+    tags: [collage, stickers, handwriting, accents]
+    file: pieces/collage.js
+    production: '103 s agency brand film, 16:9; accepted, "everyone liked" (Aman, 12-10-2026)'
+  - id: bubble-implode
+    status: approved
+    kind: scene
+    event: "Opinions pile up as chat bubbles, jitter, then implode into the centre on an impact and the answer lands"
+    use_when: [a "too many opinions / noise" opening, then the brand as the answer]
+    tags: [chat, problem, opening, implode]
+    file: pieces/agency-scenes.js
+    production: '103 s agency brand film, 16:9; accepted, "everyone liked" (Aman, 12-10-2026)'
+  - id: strike-replace
+    status: approved
+    kind: scene
+    event: "A claim rises and a marker strikes it through; the replacement line lands with one keyword highlighted; reasons cycle in a slot"
+    use_when: ["not this, but this", myth versus fact, a claim with reasons]
+    tags: [contrast, myth-vs-fact, reasons]
+    file: pieces/agency-scenes.js
+    production: '103 s agency brand film, 16:9; accepted, "everyone liked" (Aman, 12-10-2026)'
+  - id: step-rail
+    status: approved
+    kind: scene
+    event: "A process in N steps: each step slide pushes the last one out while a segmented progress rail fills"
+    use_when: [how it works, a method in 3-6 steps]
+    tags: [process, steps, how-it-works]
+    file: pieces/agency-scenes.js
+    production: '103 s agency brand film, 16:9; accepted, "everyone liked" (Aman, 12-10-2026)'
+  - id: work-wall
+    status: approved
+    kind: scene
+    event: "Real work thumbnails drop into a tilted collage one by one, each with a name pill, some taped, while the camera pans"
+    use_when: [portfolio, clients, case studies, testimonials wall]
+    tags: [portfolio, case-studies, proof, logos]
+    file: pieces/agency-scenes.js
+    production: '103 s agency brand film, 16:9; accepted, "everyone liked" (Aman, 12-10-2026)'
+  - id: word-roller
+    status: approved
+    kind: scene
+    event: "A lead line holds while a list rolls past one item per beat, the current item in the accent colour"
+    use_when: [services, features or audiences listed fast]
+    tags: [list, services, type]
+    file: pieces/agency-scenes.js
+    production: '103 s agency brand film, 16:9; accepted, "everyone liked" (Aman, 12-10-2026)'
+  - id: grain-vignette
+    status: approved
+    file: pieces/texture.js
+    production: "30 s property launch film, 16:9 OTT cut, delivered (Aman, 12-10-2026)"
+    kind: texture
+    event: "A film grain and vignette sit over the whole frame so renders read as one premium film"
+    use_when: [renders or photos from different sources in one film]
+    tags: [texture, premium]
+
+gaps:      # P0/P1 items not built yet, with what blocks them
+  - {id: safe-zones, priority: P1, blocked_by: "Meta page read 12-10-2026: no top/side percentages published (only bottom 40% with disclaimers); YouTube Shorts margins still unsourced"}
+  - {id: sound-beds, priority: P0, blocked_by: "decided 12-10-2026: score.py by default; when a film needs more, ElevenLabs Music via FAL (show cost, ask before each generation, check its commercial terms before the first client ad)"}
+  - {id: lottie, priority: P2, blocked_by: "Aman's call on the LottieFiles licence for paid client ads"}
+  - {id: voices, priority: P2, blocked_by: "pick approved ElevenLabs voices via FAL per language"}
+
+story:
+  - id: story-library
+    status: approved
+    kind: reference
+    event: "Before a script is written, a story framework is picked for the reel type (contrast, reveal, problem, day in the life, brand film) and the platform execution rules are applied"
+    file: storytelling/story-library.yaml
+    use_when: [any scripted reel or film, read by tools/reel.mjs before the script]
+    tags: [story, script, framework, abcd, reels]

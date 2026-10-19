@@ -1,0 +1,20 @@
+# Concept map: copy the reference's grammar, translate its content into the client's own world (L-156).
+# One per reference-based video, at <video>/docs/concept-map.yaml. Checked by tools/concept-check.py (ship.mjs runs it).
+reference: ../../refs/<series>/<ref-id>          # folder holding ref.mp4 and dna/dna.json (tools/ref-dna.py)
+client_facts:                                    # where every `fact:` source must be found
+  - ../../brand/video-guidelines.md
+grammar_kept:                                    # what carries over unchanged
+  - structure and beat timing (from dna.json)
+  - the trick: <one line>
+  - sync type: <loudness-driven | stepped | voice-led | timeline-locked>
+  - camera, transitions, pacing, music feel
+beats:
+  - t: [0.0, 1.8]                                # seconds in the reference
+    reference_shows: <what is on screen in the reference>
+    reference_nouns: [<the reference's own objects, e.g. mountain, building>]
+    role: <what this beat does in the reference's story, in one line>
+    client_shows: <the client's own equivalent: product, part, feature, rider moment, real asset>
+    client_line: <words on screen or spoken, if any>
+    source: "asset: <path> ; fact: <exact claim from the facts file>"
+    keeps_reference_object: false                # true only if its role is genuinely the same for the client
+    reason: ""                                   # required when keeps_reference_object is true

@@ -1,0 +1,123 @@
+# Story library: how proven writers, studios and platforms structure short brand films (generic, any client).
+# Built 16-10-2026 from first-party sources only (every URL checked 2xx); each entry says how sure we are:
+#   verified  = from the author's own page, talk, transcript or the reel itself
+#   observed  = structure seen in their work, not stated by them
+#   lead      = not verified yet; do not rely on it
+# Read by tools/reel.mjs before a script is written: pick a framework with `select`, write the spine, then the script.
+# Grow it: add a creator by giving the engine 3-5 of their reels (it transcribes them and records the structure as observed).
+
+select:                       # reel type -> the story frameworks that fit it, and the execution rules that apply to all
+  contrast_manifesto: [contrast-pairs, sparkline, golden-circle]
+  product_reveal: [abt, great-story-clues]
+  problem_solution: [abt, storybrand]
+  day_in_the_life: [storybrand, sandwich-feel]
+  brand_film: [golden-circle, anchor-line]
+  every_reel: [abcd, reels-recipe, instagram-hook]
+
+frameworks:
+  - id: contrast-pairs
+    name: Contrast pairs with a "because" close
+    by: Zach Pogrob (Instagram, 1M followers; "Contrast > Balance", 641K likes, 19.6 s)
+    confidence: verified (structure transcribed from the reel; writing process in his own words)
+    steps:
+      - Open by negating a common belief, then state the opposite ("You don't need X. You need Y.")
+      - Stack 3-4 short paired opposites, 2-4 words each, no explanation
+      - Break the pattern once with an imperative
+      - Close on one "Because..." line that states the stakes
+    process: capture the smallest piece of an idea, draft as text, condense, read it aloud for rhythm, rewrite for 5-10 minutes
+    best_for: contrast manifesto, 15-25 s, calm voice over minimal visuals
+    trap: pairs that are a feature list instead of real opposites; the close then has nothing to land on
+    sources: [https://www.instagram.com/reel/Csd1o7uAHtO/, https://www.actanonverbapodcast.com/]
+  - id: sparkline
+    name: What is / what could be
+    by: Nancy Duarte (Resonate)
+    confidence: verified (her TED talk)
+    steps:
+      - Establish what is (the status quo)
+      - Contrast it with what could be, as wide a gap as possible
+      - Move back and forth between the two
+      - Turn on a call to action
+      - End on the new bliss
+    best_for: contrast manifesto; makes every pair a real tension (what is vs what could be)
+    sources: [https://www.ted.com/talks/nancy_duarte_the_secret_structure_of_great_talks]
+  - id: golden-circle
+    name: Start with why
+    by: Simon Sinek
+    confidence: verified
+    steps: [Why (the belief), How (what brings it to life), What (the product), told from the inside out]
+    best_for: belief or brand film; the viewer meets the purpose before the features
+    sources: [https://simonsinek.com/golden-circle/]
+  - id: abt
+    name: And, But, Therefore
+    by: Randy Olson (Houston, We Have a Narrative)
+    confidence: verified (publisher page)
+    steps: [And (the situation), But (the conflict), Therefore (the resolution)]
+    best_for: product reveal, problem/solution; the tightest fit for 15-30 s
+    apply: one line per beat; the But is the hook near 3 s; the Therefore is the product payoff
+    sources: [https://press.uchicago.edu/ucp/books/book/chicago/H/bo21174162.html]
+  - id: storybrand
+    name: StoryBrand SB7
+    by: Donald Miller
+    confidence: verified (StoryBrand course workbook)
+    steps: [A character, has a problem, meets a guide, who gives a plan, and calls them to action, that helps them avoid failure, and ends in success]
+    best_for: problem/solution, day in the life; the customer is the hero and the brand the guide
+    sources: [https://storybrand.com/downloads/StoryBrand-Online-Marketing-Course-Workbook.pdf]
+  - id: great-story-clues
+    name: The clues to a great story
+    by: Andrew Stanton (Pixar)
+    confidence: verified (TED transcript)
+    steps: [Make me care, a promise at the start, 2+2 (let the viewer add it up), inevitable but not predictable, a character with a spine, wonder, a truth you know]
+    best_for: a gate on any reel; product reveal and day in the life
+    sources: [https://www.ted.com/talks/andrew_stanton_the_clues_to_a_great_story]
+  - id: sandwich-feel
+    name: Find the right story; feel how the user feels
+    by: Sandwich (launch films for Slack, Descript, Perplexity)
+    confidence: verified (their own site)
+    steps: [Find the one thing that makes the product magical, show how the user feels using it, make the complex seem simple, real people over spokespeople or mascots]
+    best_for: product and launch films, day in the life
+    sources: [https://sandwich.co/about/, https://sandwich.co/faq/]
+  - id: anchor-line
+    name: One anchor line, restraint
+    by: BUCK (Oura, Illumina, Headspace)
+    confidence: verified (their case studies)
+    steps: [Concept before execution, one line anchors all the storytelling, avoid the hype film, give each element space to breathe]
+    best_for: brand film, motion-design product film
+    sources: [https://buck.co/work/oura-ring-true-to-you, https://buck.co/work/illumina, https://buck.co/work/headspace]
+
+execution:                    # apply to every reel, whatever the story framework
+  - id: abcd
+    name: ABCDs of effective video ads
+    by: Google / YouTube (Kantar study of 11,000 ads, 2021)
+    confidence: verified
+    rules:
+      - Attention - jump in fast, audio and text together, bright high-contrast visuals for small screens
+      - Branding - brand early and often; see and say (show the brand and say it aloud)
+      - Connection - one focused message; help people think or feel something
+      - Direction - say what to do next, on screen and in the voice
+    numbers: [30% lift in short-term sales likelihood and 17% in long-term brand contribution for ads that follow them]
+    sources: [https://www.youtube.com/intl/en_id/ads/abcds-of-effective-video-ads/]
+  - id: reels-recipe
+    name: Reels ads creative
+    by: Meta
+    confidence: verified
+    rules: [Vertical 9:16, built with audio, key messages and the end call to action inside the safe zone, captions as a fallback for muted viewers]
+    numbers: [Over 75% of Reels views are sound on, 34.5% lower cost per result than image ads (15 split tests)]
+    sources: [https://www.facebook.com/business/ads/facebook-instagram-reels-ads]
+  - id: instagram-hook
+    name: The 3-second hook
+    by: Instagram for Creators
+    confidence: verified
+    rules: [Hook in the first 3 seconds, read View Rate (share still watching after 3 s) in Insights, music or subtitles help]
+    sources: [https://creators.instagram.com/blog/helping-creators-of-all-sizes-break-through]
+
+creators_to_watch:            # useful, not yet usable as a script framework
+  - {name: Dan Koe, confidence: verified (own site), note: "an idea pipeline (daily short posts, one weekly long piece), not a reel structure", source: "https://thedankoe.com/letters/you-dont-need-a-niche-you-need-a-point-of-view/"}
+  - {name: Sahil Bloom, confidence: observed, note: "packages each idea as a short named rule; no stated writing method found"}
+  - {name: Jack Butcher (Visualize Value), confidence: lead, note: "one idea, one image, black and white; read his page in a browser before using"}
+  - {name: Wieden+Kennedy, confidence: observed, note: "capture the feeling, not the facts; one human truth per film (Nike case pages)"}
+  - {name: ManvsMachine, confidence: observed, note: "build a rule system first, then direct inside it (iMac Pro note)"}
+
+gaps:
+  - No Indian creator or studio with a published method was found (CRED's is not public).
+  - TikTok's creative guidance could not be loaded from this machine; nothing from it is used.
+  - Most reel creators do not publish a method; the way to learn theirs is to feed the engine 3-5 of their reels.

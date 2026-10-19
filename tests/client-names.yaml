@@ -1,0 +1,54 @@
+# Team Because's clients: one reference list for B1 (Aman, 16-10-2026).
+# B1 is built for EVERY client, so shared code, prompts and screens must never carry one client's specifics
+# (it happened twice: the PFM plan built on Divine Group's details failed for A. Shridhar; the reel engine was nearly shaped
+# around Avore). tests/client-leak.test.mjs reads every `name` and `aka` below and fails when one appears in shared code.
+# Add every new client or sub-brand here when it is onboarded. Dates are DD-MM-YYYY.
+
+website:                                  # teambecause.com/casestudies, read 16-10-2026; every case_study link checked (200)
+  source: https://teambecause.com/casestudies
+  clients:
+    - {name: Adani Realty, services: Branding & Advertising, case_study: https://teambecause.com/case-study/adani-realty}
+    - {name: Tata IIS, services: Branding & Advertising, case_study: https://teambecause.com/case-study/tata-iis}
+    - {name: Vidhya Samiksha Kendra, aka: [Vidya Samiksha Kendra], services: Branding, case_study: https://teambecause.com/case-study/vidhya-samiksha-kendra}
+    - {name: ConveGenius, services: Branding & Advertising, case_study: https://teambecause.com/case-study/the-convegenius-brand-book-rebranding}
+    - {name: A. Shridhar Group, aka: [A. Shridhar], services: Branding & Advertising, case_study: https://teambecause.com/case-study/a-shridhar-group}
+    - {name: RFL Academy, services: Branding & Advertising, case_study: https://teambecause.com/case-study/rfl-academy}
+    - {name: GGIS, aka: [Gems Genesis International School], services: Branding & Advertising, case_study: https://teambecause.com/case-study/ggis}
+    - {name: Falguni, aka: [Falguni Gruh Udhyog], services: Branding & Advertising, case_study: https://teambecause.com/case-study/falguni}
+    - {name: "Nini's Kitchen", aka: ["Baked by Nini's"], services: Branding & Advertising, case_study: https://teambecause.com/case-study/ninis-kitchen}
+    - {name: Shanti Asiatic School, services: Branding, case_study: https://teambecause.com/case-study/shanti-asiatic-school}
+    - {name: Medishvi Educators, aka: [Vikas Sir], services: Branding & Advertising, case_study: https://teambecause.com/case-study/medishvi-educators}
+    - {name: Anantbaug, services: Advertising & Content, case_study: https://teambecause.com/case-study/anantbaug}
+    - {name: Unispace, services: Advertising & Content, case_study: https://teambecause.com/case-study/unispace}
+    - {name: Prizor, services: Branding & Advertising, case_study: https://teambecause.com/case-study/prizor}
+    - {name: Venus Developers, aka: [Venus], services: Branding & Advertising, case_study: https://teambecause.com/case-study/venus}
+    - {name: SMILE, aka: [Shree Maruti Integrated Logistics], services: Advertising & Content, case_study: https://teambecause.com/case-study/smile}
+    - {name: Jivraj Mehta Hospital, aka: [Jivraj], services: Branding, case_study: https://teambecause.com/case-study/jivraj}
+    - {name: Nagar Chasma Ghar, services: Branding & Advertising, case_study: https://teambecause.com/case-study/nagar-chasma-ghar}
+    - {name: Anecdote, services: Branding & Advertising, case_study: https://teambecause.com/case-study/anecdote}
+    - {name: SwiftChat, services: Branding & Websites, case_study: https://teambecause.com/case-study/swiftchat}
+    - {name: Wordsworth, aka: [Words Worth], services: Branding & Advertising, case_study: https://teambecause.com/case-study/wordsworth}
+    - {name: Udgam na Garba, aka: [Udgam Consultancy], services: Branding & Advertising, case_study: https://teambecause.com/case-study/udgam-na-garba}
+
+b1:                                       # clients and sub-brands set up in B1 (production database), as of 16-10-2026
+  clients:
+    - {name: A. Shridhar, note: real estate; Create tab pilot}
+    - {name: Avore, aka: [EX2S, EX2, EX1], note: electric motorcycles; Create tab pilot; test brand for the reel engine}
+    - {name: Divine Group of School, aka: [Divine Bliss, Divine Wisdom, Divine Values], note: schools; group with three brands}
+    - {name: GEMS Millennium, aka: [GEMS Modern], note: schools (Kochi)}
+    - {name: Shanti Juniors, note: preschools}
+    - {name: Shivalik, note: real estate}
+
+motion_studio:                            # client folders in motion-studio/clients/
+  clients:
+    - {name: Avocab}
+    - {name: RoboFun Lab, aka: [RFL]}
+    - {name: Because, note: the agency itself}
+
+studio:                                   # motion-studio client folders and products (19-10-2026)
+  clients:
+    - {name: "A. Shridhar", aka: [a-shridhar, wynn]}
+    - {name: "Avocab", aka: [avocab]}
+    - {name: "Avore", aka: [avore, ex2s]}
+    - {name: "Team Because", aka: [because]}
+    - {name: "RoboFun Lab", aka: [robofunlab]}

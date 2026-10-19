@@ -1,0 +1,113 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>library pieces · brand-free test</title>
+<!-- Runs every generic piece on a building drawn in code (no client asset), in any format (?fmt=9x16|1x1|16x9).
+     node tools/stills.mjs library/pieces/demo.html --times 1,3.5,5.9,6.7,8.3,9.6,11.5,13,14.5,16,18.5,21,22.7,24.4,25.6,27.9,31.5,34 --dur 35 -->
+<style>html,body{margin:0;background:#000}canvas{display:block;max-height:100vh;width:auto;margin:auto}</style>
+<canvas id="c"></canvas>
+<script src="core.js"></script><script src="type.js"></script><script src="texture.js"></script>
+<script src="floor-build.js"></script><script src="list-transitions.js"></script><script src="counter-proof.js"></script>
+<script src="qr-endcard.js"></script><script src="demo-qr.js"></script>
+<script src="../../templates/engine/motion.js"></script><script src="circle-match-cut.js"></script><script src="powered-by.js"></script>
+<script src="collage.js"></script><script src="agency-scenes.js"></script>
+<script>
+const FORMATS = { '9x16': [1080, 1920], '1x1': [1080, 1080], '16x9': [1920, 1080] };
+const [W, H] = FORMATS[new URLSearchParams(location.search).get('fmt') || '9x16'];
+const cv = document.getElementById('c'); cv.width = W; cv.height = H; const c = cv.getContext('2d');
+const U = Math.min(W, H) / 1080, M = 80 * U, ACC = '#5BA8FF';                // neutral test accent, not a brand
+const FD = { family: 'Georgia', weight: 400 }, FU = { family: 'Helvetica', weight: 700 };
+
+// a test "render": a tower with lit windows on a dusk gradient, 1200x1600
+function testRender(seed, hue) {
+  const k = document.createElement('canvas'); k.width = 1200; k.height = 1600; const x = k.getContext('2d'), r = P.mulberry32(seed);
+  const g = x.createLinearGradient(0, 0, 0, 1600); g.addColorStop(0, `hsl(${hue},40%,22%)`); g.addColorStop(1, `hsl(${hue + 30},45%,55%)`);
+  x.fillStyle = g; x.fillRect(0, 0, 1200, 1600);
+  x.fillStyle = '#1d2230'; x.fillRect(380, 260, 440, 1190);
+  for (let fl = 0; fl < 34; fl++) for (let w = 0; w < 9; w++) { x.fillStyle = r() > 0.35 ? '#f3d9a4' : '#2c3344'; x.fillRect(400 + w * 46, 1420 - fl * 34, 34, 22); }
+  x.fillStyle = '#2a2f3d'; x.fillRect(0, 1450, 1200, 150); return k;
+}
+// round test photos: a disc of colour on a textured square, circle measured as [50, 50, 25% of width]
+function disc(seed, hue) { const k = document.createElement('canvas'); k.width = k.height = 2000; const x = k.getContext('2d'), r = P.mulberry32(seed);
+  x.fillStyle = `hsl(${hue + 40},30%,30%)`; x.fillRect(0, 0, 2000, 2000);
+  for (let i = 0; i < 300; i++) { x.fillStyle = `hsla(${hue + 60},30%,${20 + r() * 30}%,0.6)`; x.fillRect(r() * 2000, r() * 2000, 50, 50); }
+  const g = x.createRadialGradient(1000, 1000, 0, 1000, 1000, 500); g.addColorStop(0, `hsl(${hue},80%,70%)`); g.addColorStop(1, `hsl(${hue},70%,35%)`);
+  x.fillStyle = g; x.beginPath(); x.arc(1000, 1000, 500, 0, Math.PI * 2); x.fill(); return k; }
+function badge(txt, bg, fg) { const k = document.createElement('canvas'); k.width = 600; k.height = 600; const x = k.getContext('2d');
+  x.fillStyle = bg; x.fillRect(0, 0, 600, 600); x.fillStyle = fg; x.font = '700 120px Helvetica'; x.textAlign = 'center'; x.fillText(txt, 300, 340); return k; }
+const IMGS = {}; let LIST = [], CUTS = [], LOCK;
+let R1, R2, R3, GHOST, GR, BL, THUMBS = [];
+window.ready = document.fonts.ready.then(() => { R1 = testRender(1, 220); R2 = testRender(2, 260); R3 = testRender(3, 190); GHOST = P.ghostPlate(R1); GR = P.makeGrain(c, 99);
+  for (let i = 0; i < 12; i++) IMGS['d' + i] = disc(10 + i, i * 30);
+  IMGS.partner = badge('PARTNER', '#EEE4D5', '#8E0F1A'); IMGS.brand = badge('BRAND', '#FFFFFF', '#222222');
+  LOCK = { x: W / 2, y: H / 2, r: Math.min(W, H) / 2 };
+  LIST = Array.from({ length: 12 }, (_, i) => ['d' + i, 50, 50, 25, i < 6 ? 6 : 4]);
+  CUTS = P.matchCutPrepare(LIST, IMGS, LOCK, W, H, 24);
+  BL = P.bubbleLayout(['Make it bigger.', 'Can it pop more?', 'Try one more option?', 'Make it premium.', 'Something like X?', 'Add every feature.', 'Gut says no.', 'More colours.'],
+    { cols: W > H ? 4 : 2, rows: W > H ? 2 : 4, x0: W * 0.2, y0: H * 0.25, dx: W > H ? 465 : 480, dy: W > H ? 300 : 320, t0: 19.0, every: 0.3 });
+  for (let i = 0; i < 9; i++) THUMBS.push([testRender(40 + i, i * 40), 'Client ' + (i + 1)]); });
+const TOWER = { x0: 380 / 1200, x1: 820 / 1200, top: 260 / 1600, ground: 1450 / 1600 };
+
+function draw(t) {
+  c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = '#0b0d12'; c.fillRect(0, 0, W, H);
+  if (t < 3) {                                                  // type-rise-wipe
+    P.cover(c, R2, 0.5, 0.5, P.lerp(1.12, 1, P.outCubic(P.prog(t, 0, 2.5))));
+    const big = P.fitSize(c, 'HEADLINE', FD, (W - 2 * M) * 0.95, H * 0.2);
+    P.rise(c, 'THE NEW', M, H * 0.45, FD, big * 0.5, '#fff', t, 0, { out: 2.6 });
+    P.rise(c, 'HEADLINE', M, H * 0.45 + big, FD, big, '#fff', t, 0.4, { lsFrom: big * 0.2, ls: big * 0.01, out: 2.6 });
+    P.rule(c, M, H * 0.45 + big * 1.18, 300 * U, t, 1.2, ACC, 4 * U);
+    P.wipe(c, 'LOCATION LINE  ·  CITY', M, H * 0.45 + big * 1.18 + 60 * U, FU, 26 * U, 'rgba(255,255,255,0.85)', t, 1.6, { ls: 8 * U });
+  } else if (t < 6.5) {                                         // floor-build
+    const dh = H * 0.84, dw = dh * 1200 / 1600, x = (W - dw) / 2, y = H * 0.08;
+    const n = P.floorBuild(c, t, { img: R1, ghost: GHOST, box: [x, y, dw, dh], tower: TOWER, floors: 34, t0: 3.15, t1: 5.9, flood: [5.9, 6.3], scan: ACC });
+    if (t < 5.9) P.plain(c, String(n).padStart(2, '0') + ' / 34', M, H * 0.92, FD, 120 * U, '#fff');
+  } else if (t < 10) {                                          // address-transitions + level gauge
+    const plates = [R2, R3, R1], types = ['doors', 'slats', 'iris'], A0 = 6.5, AL = 1.15;
+    const k = P.clamp(Math.floor((t - A0) / AL), 0, 2), a = t - (A0 + k * AL);
+    const plate = (i) => () => { c.fillStyle = '#121212'; c.fillRect(0, 0, W, H); P.cover(c, plates[i], 0.5, 0.45, 1.1); };
+    P.listTransition(c, types[k], P.prog(a, 0, 0.5), k ? plate(k - 1) : plate(2), plate(k), ACC);
+    P.rise(c, ['ZONE ONE', 'ZONE TWO', 'ZONE THREE'][k], M, H * 0.8, FD, 110 * U, '#fff', t, A0 + k * AL + 0.15, { stagger: 0.03 });
+    P.levelGauge(c, t, { x: W - M, top: H * 0.12, bottom: H * 0.5, levels: 34, items: [[1, 3], [4, 26], [27, 34]], t0: A0, step: AL, tIn: A0, tOut: 10, labels: ['LOWER', 'MIDDLE', 'TOP'], f: FU, accent: ACC });
+  } else if (t < 12) {                                          // counter-proof
+    P.counterProof(c, t, { img: R1, tilt: [10, 11.5], zoom: [1.3, 1.2], value: 152, unit: 'M', caption: 'METRES TO THE TOP', t0: 10.1, land: 11.5,
+      x: M, y: W > H ? H * 0.42 : H * 0.24, size: 300 * U, f: FD, fu: FU, accent: ACC, ruler: { x: W - M, top: H * 0.12, bottom: H * 0.88 } });
+  } else if (t >= 14 && t < 17) {                               // circle-match-cut
+    c.fillStyle = '#000'; c.fillRect(0, 0, W, H); P.matchCut(c, t - 14, LIST, IMGS, LOCK, CUTS, { guide: true });
+  } else if (t >= 19 && t < 23) {                               // bubble-implode
+    P.paperGrid(c, '#FAFAF7', 'rgba(11,18,32,0.07)', -t * 6, 0);
+    if (!P.bubbleImplode(c, t, BL, { jitterFrom: 21.5, implode: [22.35, 23.0], bubble: { f: FU } })) {}
+    if (t > 22.9) P.ringBurst(c, W / 2, H / 2, t, 22.9, ACC);
+  } else if (t >= 23 && t < 26.5) {                             // strike-replace
+    P.paperGrid(c, '#1f3d8a', 'rgba(255,255,255,0.09)', -t * 10, 0);
+    const L = M, sz = 64 * U, qw = P.riseWords(c, '"Trust us, it works."', L, H * 0.3, FU, sz, '#fff', t, 23.1);
+    P.marker(c, L - 10, H * 0.3 - sz * 0.35, qw + 20, P.outExpo(P.prog(t, 23.9, 24.2)), ACC, 16);
+    P.riseWords(c, 'Do this, because', L, H * 0.5, FU, sz, '#fff', t, 24.3, { colors: [0, 0, ACC] });
+    P.reasonSlot(c, t, ['customers ask for it.', 'rivals cannot claim it.'], { t0: 25.0, every: 0.75, x: L, y: H * 0.62, f: FD, size: 48 * U, ink: '#fff', clip: [L - 10, H * 0.62 - 70 * U, W, 110 * U] });
+  } else if (t >= 26.5 && t < 30) {                             // step-rail + push slides
+    P.paperGrid(c, '#FAFAF7', 'rgba(11,18,32,0.07)', -t * 12, 0);
+    P.stepRail(c, t, { x: M, y: 96 * U, w: W - 2 * M, n: 3, t0: 26.5, step: 1.15, fill: ACC, title: 'THE PROCESS', f: FU });
+    P.pushSlides(c, t, { t0: 26.5, step: 1.15, n: 3, draw: (k, u) => P.riseLine(c, ['01  Research', '02  Connect', '03  Simplify'][k], M, H * 0.5, FD, 90 * U, '#0B1220', u, 0.1) });
+  } else if (t >= 30 && t < 33) {                               // work-wall
+    P.paperGrid(c, '#FAFAF7', 'rgba(11,18,32,0.07)', 0, 0);
+    P.workWall(c, t, THUMBS, { t0: 30.0, every: 0.2, rows: 3, x0: 200 * U, y0: H * 0.3, dx: 310 * U, dy: 290 * U, w: 250 * U, pan: [30, 32.8, 400 * U], f: FU, pill: { bg: '#fff', ink: '#0B1220', stroke: '#0B1220' }, tape: 'rgba(91,168,255,0.8)' });
+  } else if (t >= 33 && t < 35) {                               // word-roller
+    P.paperGrid(c, '#FAFAF7', 'rgba(11,18,32,0.07)', 0, -t * 20);
+    const wide = W > H, lx = M, ly = wide ? H * 0.55 : H * 0.36, rx = wide ? W * 0.42 : M, ry = wide ? H * 0.55 : H * 0.55;
+    P.riseLine(c, 'We do', lx, ly, FD, 90 * U, '#0B1220', t, 33.0);
+    P.wordRoller(c, t, ['branding.', 'social.', 'video.', 'strategy.'], { t0: 33.2, every: 0.4, x: rx, y: ry, gap: 120 * U, f: FD, size: 80 * U, ink: '#0B1220', accent: ACC,
+      clip: wide ? [rx - 10, H * 0.15, W - rx, H * 0.75] : [0, ly + 40 * U, W, H * 0.5] });
+  } else if (t >= 17) {                                         // powered-by-card
+    P.poweredBy(c, t, { ground: '#EEE4D5', partner: { img: IMGS.partner, size: Math.min(W, H) * 0.5, y: H * 0.34, at: 17.15 },
+      label: { draw: (y, tt) => P.wipe(c, 'POWERED BY', W / 2, y, FU, 40 * U, '#17233F', tt, 17.5, { align: 'center', ls: 10 * U }) },
+      brand: { img: IMGS.brand, box: [0, 200, 600, 200], width: Math.min(W, H) * 0.5, at: 17.75 } });
+  } else {                                                      // qr-endcard
+    c.fillStyle = '#0c0c0e'; c.fillRect(0, 0, W, H);
+    P.rise(c, 'PROJECT', M, H * 0.16, FD, 120 * U, '#fff', t, 12.0);
+    const ph = P.ctaPill(c, 'BOOK A VISIT', M, H * 0.22, t, 12.3, 30 * U, { f: FU, fill: ACC });
+    const qs = Math.min(W, H) * 0.45; P.qrBuild(c, window.QR, M, H * 0.22 + ph + 60 * U, qs, t, 12.3, { accent: ACC, traceAt: 13.2 });
+    P.wipe(c, 'REG. NO. 000000  |  authority.example', M, H - 60 * U, FU, 22 * U, 'rgba(255,255,255,0.62)', t, 12.6);
+  }
+  P.vignette(c, t >= 12 ? 0.35 : 0.5); P.grain(c, GR, t);
+}
+window.seek = async (t) => { await window.ready; draw(t); return true; };
+if (!navigator.webdriver) window.ready.then(() => { const t0 = performance.now(); (function l() { draw(((performance.now() - t0) / 1000) % 35); requestAnimationFrame(l); })(); });
+</script>

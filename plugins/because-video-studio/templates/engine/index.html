@@ -1,0 +1,93 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>seek(t) starter</title>
+<!-- Engine starter. Copied into every new video by tools/new-video.mjs.
+     Preview: open this file in a browser (loops live).
+     Check:   node tools/check.mjs <video>/index.html        (every gate, every format; must exit clean)
+     Ship:    node tools/ship.mjs <video>/index.html         (renders every format, sound, mux, deliverables)
+     Contract read by the tools: window.ready, window.seek(t), window.audit(t), window.film. -->
+<style>html,body{margin:0;background:#141413}canvas{display:block;max-height:100vh;width:auto;margin:auto}</style>
+<canvas id="c"></canvas>
+<!-- spring, track, indicator, swapAlpha, loopT, rng, clamp, lerp, SPRINGS (step 08) -->
+<script src="motion.js"></script>
+<script>
+// ---- format: 9:16 master, others via ?fmt= ----
+const FORMATS = { '9x16': [1080, 1920], '1x1': [1080, 1080], '16x9': [1920, 1080], '4x5': [1080, 1350] };
+const FMT = new URLSearchParams(location.search).get('fmt') || '9x16';
+const [W, H] = FORMATS[FMT];
+const cv = document.getElementById('c');
+cv.width = W; cv.height = H;
+const g = cv.getContext('2d');
+</script>
+<!-- rec/AUDIT, win, softSpring, hop, squash, flash, cover, prop, line, pill, wordCaptions, band, bloom, lockup, clipFrame -->
+<script src="blocks.js"></script>
+<script>
+const DUR = 6;                                   // seconds, match brief.md
+const BG = '#141413', INK = '#F0EEE6', ACCENT = '#D97757';  // replace with clients/<slug>/brand/brand.json
+const FONT = 'sans-serif';
+
+// ---- the one timing table: picture AND sound read these numbers (L-107) ----
+const T = {
+  title: 0.2,
+  hop: [1.6, 0.45],                              // [take-off, air time]: the landing is at 2.05
+  end: 3.2,
+};
+
+// ---- film contract for tools/check.mjs and tools/ship.mjs ----
+window.film = {
+  dur: DUR,
+  formats: Object.keys(FORMATS),                 // drop a format here if the brief does not ask for it
+  // allowed edge cuts: { name: 'prefix', edges: ['right'], from: 0, to: 1.2 } (only what the shot list says)
+  allow: [],
+  // motion that a sound must land on: the check measures when `item` really lands and compares with `t`
+  sync: [{ item: 'ball', t: T.hop[0] + T.hop[1], what: 'landing' }],
+  // things that must glide (camera, pans): rec('_cam', camX, camY, 1, 1) each frame, then { item: '_cam', from, to }
+  smooth: [],
+  // sound cues, generated from T so they cannot drift from the picture (tools/sfx.mjs voices)
+  cues: [
+    { t: T.title, type: 'hit', gain: 0.6 },
+    { t: T.hop[0], type: 'whoosh', len: T.hop[1] },
+    { t: T.hop[0] + T.hop[1], type: 'thump', gain: 0.6 },
+    { t: T.end, type: 'final', gain: 0.6 },
+  ],
+  music: null,                                   // or 'music.mp3' in the video folder
+};
+
+// ---- assets: list every image here; render waits for all of them ----
+const IMAGES = {};                               // e.g. { logo: '../../brand/assets/logo-white.svg' }
+const img = {};
+const loadImg = (k, src) => new Promise((ok, fail) => {
+  const i = new Image(); i.onload = () => { img[k] = i; ok(); }; i.onerror = () => fail(new Error('missing image ' + src)); i.src = src;
+});
+window.ready = Promise.all([document.fonts.ready, ...Object.entries(IMAGES).map(([k, s]) => loadImg(k, s))]);
+
+// ---- scenes: one object per shot, t is film time ----
+const SCENES = [
+  { from: 0, to: T.end, draw(t) {                // placeholder: title, then a ball that hops and lands on a sound
+    line('TITLE', W / 2, H * 0.32, t, T.title, { size: Math.min(W, H) * 0.16, weight: 700, font: FONT, color: INK, preset: 'heavy' });
+    const r = Math.min(W, H) * 0.07, y = H * 0.62 - hop(t, ...T.hop, H * 0.18), q = squash(t, [T.hop]);
+    g.save(); g.translate(W / 2, y); g.scale(1 + q, 1 - q);
+    g.fillStyle = ACCENT; g.beginPath(); g.arc(0, -r, r, 0, TAU); g.fill(); rec('ball', -r, -2 * r, 2 * r, 2 * r);
+    g.restore();
+  }},
+  { from: T.end, to: DUR + 0.1, draw(t) {        // placeholder: end card
+    bloom(t, T.end, W / 2, H * 0.42, Math.max(W, H) * 0.6, [217, 119, 87]);
+    line('END CARD', W / 2, H * 0.44, t, T.end + 0.15, { size: Math.min(W, H) * 0.09, weight: 700, font: FONT, color: INK, preset: 'heavy' });
+  }},
+];
+
+function draw(t) {
+  AUDIT = [];
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.fillStyle = BG; g.fillRect(0, 0, W, H);
+  for (const s of SCENES) if (t >= s.from && t < s.to) s.draw(t);
+}
+window.seek = async (t) => { await window.ready; draw(t); return true; };
+window.audit = async (t) => { await window.seek(t); return { W, H, items: AUDIT }; };
+
+// Live preview in a normal browser; off in headless render (navigator.webdriver)
+if (!navigator.webdriver) window.ready.then(() => {
+  const t0 = performance.now();
+  (function loop() { draw(((performance.now() - t0) / 1000) % DUR); requestAnimationFrame(loop); })();
+});
+</script>
