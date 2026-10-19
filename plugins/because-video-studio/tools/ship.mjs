@@ -7,7 +7,7 @@
 //   7. appends one line to <video>/docs/ledger.md (stage, minutes)
 // Output: <video>/out/<client>-<video>-<fmt>-v<N>.mp4, N one above the highest existing version.
 // --draft: 540 px wide, 24 fps, no subframes, master only (the animatic gate). Nothing is versioned.
-import { chromium } from 'playwright';
+import { launch, openFilm } from './film-page.mjs';
 import { spawnSync } from 'node:child_process';
 import { resolve, dirname, join, basename } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -43,9 +43,8 @@ if (!args.includes('--skip-check') && !DRAFT) {
 // The library and client layout must be valid too (paths, statuses, no client words in generic files)
 { const lc = spawnSync(PY, [join(tools, '..', 'library', 'check_index.py')], { stdio: 'inherit' });
   if (lc.status) { console.error('library check failed: fix it before shipping'); process.exit(1); } }
-const b = await chromium.launch();
-const p = await b.newPage();
-await p.goto(pathToFileURL(resolve(page)).href);
+const b = await launch();
+const p = await openFilm(b, page, { width: 1080, height: 1920 });
 const film = await p.evaluate(() => JSON.parse(JSON.stringify(window.film)));
 await b.close();
 const formats = DRAFT ? [film.formats[0]] : opt('fmt') ? [opt('fmt')] : film.formats;

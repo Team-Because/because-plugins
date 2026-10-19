@@ -2,6 +2,7 @@
 // Saves a brand kit from a live site: screenshots, logo candidates, colours, fonts.
 // Output: clients/<slug>/brand/assets/*, clients/<slug>/brand/brand.json
 import { chromium } from 'playwright';
+import { guardContext, safeFetch, assertPublicUrl } from './netguard.mjs';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,8 +16,11 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'clients', slug, 'brand'), assets = join(dir, 'assets');
 mkdirSync(assets, { recursive: true });
 
+await assertPublicUrl(url);   // a client site is a public address; never this machine or the office network
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
+const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, serviceWorkers: 'block' });
+await guardContext(context);
+const page = await context.newPage();
 // Hide cookie / consent overlays for clean shots (hidden with CSS, never accepted or rejected)
 const hideOverlays = () => page.evaluate(() => {
   const rx = /cookie|consent|gdpr|onetrust|cookiebot|truste|privacy-banner/i;
@@ -92,13 +96,13 @@ const files = [];
 const targets = [...kit.logos.map((u, i) => [u, `logo-${i + 1}`]), ...(kit.ogImage ? [[kit.ogImage, 'og-image']] : [])];
 for (const [u, name] of targets) {
   try {
-    const res = await page.request.get(u, { timeout: 20000 });
-    if (!res.ok()) continue;
-    const type = res.headers()['content-type'] || '';
+    const res = await safeFetch(u, { timeoutMs: 20000 });
+    if (!res.ok) continue;
+    const type = res.headers.get('content-type') || '';
     const ext = type.includes('svg') ? 'svg' : type.includes('png') ? 'png' : type.includes('jpeg') ? 'jpg'
       : type.includes('webp') ? 'webp' : type.includes('icon') ? 'ico' : 'bin';
     const file = `${name}.${ext}`;
-    writeFileSync(join(assets, file), await res.body());
+    writeFileSync(join(assets, file), res.buffer);
     files.push({ file, from: u });
   } catch { /* skip unreachable asset */ }
 }
