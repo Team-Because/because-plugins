@@ -68,7 +68,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.0
       # A person's setup installs these with Homebrew or winget; CI machines have neither ready, so they come first here
       - name: ffmpeg (Mac)
         if: runner.os == 'macOS'
