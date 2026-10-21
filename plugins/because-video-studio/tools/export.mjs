@@ -9,8 +9,8 @@
 // Output: <video>/out/<client>-<video>-<fmt>_editable/ (and .zip with --zip). Opens films through film-page.mjs, so reel
 // films stay sealed.
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
-import { join, dirname, resolve, basename } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, writeFileSync, readFileSync, rmSync, realpathSync } from 'node:fs';
+import { join, dirname, resolve, basename, sep } from 'node:path';
 import { STUDIO, PY } from './paths.mjs';
 import { launch, openFilm, autoSandbox } from './film-page.mjs';
 
@@ -29,7 +29,14 @@ const b = await launch();
 let p = await openFilm(b, page, { width: 1080, height: 1920 });
 await p.evaluate(() => window.ready);
 const film = await p.evaluate(() => JSON.parse(JSON.stringify(window.film)));
-const fmt = opt('fmt', film.formats?.[0] ?? '9x16'), [W, H] = SIZES[fmt], FPS = +opt('fps', film.fps ?? 30);
+// the film's own values are untrusted (a reel film is written after reading a reference): check every one before use
+const fmt = opt('fmt', film.formats?.[0] ?? '9x16');
+if (!SIZES[fmt]) { console.error(`unknown format ${fmt}`); process.exit(1); }
+const [W, H] = SIZES[fmt], FPS = Math.min(120, Math.max(1, Math.round(+opt('fps', film.fps ?? 30)) || 30));
+const DUR = Number.isFinite(+film.dur) && +film.dur > 0 && +film.dur <= 600 ? +film.dur : null;
+if (!DUR) { console.error('the film has no valid length (window.film.dur)'); process.exit(1); }
+film.dur = DUR;
+const BG = /^#[0-9a-fA-F]{6}$/.test(film.bg ?? '') ? film.bg : '#000000';
 const final = finals.filter((f) => f.includes(`-${fmt}-`)).sort((a, z) => +a.match(/-v(\d+)/)[1] - +z.match(/-v(\d+)/)[1]).at(-1);
 if (!final) { console.error(`no ${fmt} render in out/: run tools/ship.mjs first`); process.exit(1); }
 const slug = `${client}-${video}-${fmt}`, work = join(out, 'export'), pkg = join(out, `${slug}_editable`);
@@ -41,14 +48,18 @@ p = await openFilm(b, page, { width: W, height: H }, `?fmt=${fmt}`);
 await p.addStyleTag({ content: `html,body{margin:0;background:transparent!important}canvas{width:${W}px!important;height:${H}px!important;margin:0!important}` });
 await p.evaluate(() => window.ready);
 // the background: a live solid for After Effects, and the same colour as a still for Premiere (XML cannot carry solids)
-const bgPng = join(work, 'background.png'), bgHex = String(film.bg ?? '#000000').replace('#', '0x');
+const bgPng = join(work, 'background.png'), bgHex = BG.replace('#', '0x');
 run('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', `color=c=${bgHex}:s=${W}x${H}`, '-frames:v', '1', bgPng]);
-const layers = [{ id: 'bg', name: 'Background', type: 'solid', color: film.bg ?? '#000000', in: 0, out: film.dur },
+const layers = [{ id: 'bg', name: 'Background', type: 'solid', color: BG, in: 0, out: film.dur },
   { id: 'bg-still', name: 'Background (Premiere)', type: 'image', targets: ['premiere'], from: bgPng, src: 'images/background.png', in: 0, out: film.dur, width: W, height: H }];
-const scenes = (film.scenes ?? []).filter((s) => s.to > s.from);
+const scenes = (Array.isArray(film.scenes) ? film.scenes : []).slice(0, 200).map((s, idx) => ({
+  i: idx, name: String(s?.name ?? `scene ${idx + 1}`).slice(0, 40),
+  from: Math.max(0, Math.min(DUR, +s?.from)), to: Math.max(0, Math.min(DUR, +s?.to)) }))
+  .filter((s) => Number.isFinite(s.from) && Number.isFinite(s.to) && s.to > s.from);
 if (scenes.length) {
   for (const s of scenes) {
-    const n = String(s.i + 1).padStart(2, '0'), file = join(work, 'video', `${n}_${String(s.name).replace(/[^\w-]+/g, '-')}_alpha_${W}x${H}.mov`);
+    const n = String(s.i + 1).padStart(2, '0'), file = join(work, 'video', `${n}_${s.name.replace(/[^\w-]+/g, '-')}_alpha_${W}x${H}.mov`);
+    if (dirname(file) !== join(work, 'video')) throw new Error('bad scene name');
     const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'png', '-i', '-',
       '-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le', '-alpha_bits', '16', '-vendor', 'apl0', '-r', String(FPS), file], { stdio: ['pipe', 'inherit', 'inherit'] });
     const canvas = await p.$('canvas'), N = Math.max(1, Math.round((s.to - s.from) * FPS));
@@ -68,7 +79,11 @@ if (scenes.length) {
 await b.close();
 
 // ---------- 2. audio tracks ----------
-const audio = [['voice', join(vd, 'vo.wav')], ['music', film.music ? resolve(vd, film.music) : join(vd, 'music.wav')], ['sound effects', join(out, 'sfx.wav')]];
+// the music file the film names must sit inside the video folder
+const inVideo = (f) => { try { return realpathSync(f).startsWith(realpathSync(vd) + sep); } catch { return false; } };
+const named = film.music ? resolve(vd, String(film.music)) : null;
+if (named && !inVideo(named)) console.log(`music ${film.music} is outside the video folder: left out`);
+const audio = [['voice', join(vd, 'vo.wav')], ['music', named && inVideo(named) ? named : join(vd, 'music.wav')], ['sound effects', join(out, 'sfx.wav')]];
 for (const [name, f] of audio) if (existsSync(f)) layers.push({ id: name.replace(' ', '-'), name, type: 'audio', from: f, src: `audio/${name.replace(' ', '-')}.wav`, in: 0 });
 const mixRef = join(work, 'mix-reference.wav');
 if (run('ffprobe', ['-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=index', '-of', 'csv=p=0', join(out, final)], { quiet: true }).stdout.trim()) {
@@ -90,7 +105,7 @@ if (existsSync(join(vd, 'vo.json'))) {
 
 // ---------- 4. package ----------
 const manifest = { version: 1, name: `${client} ${video} ${fmt}`, slug: slug.replace(/[^\w-]/g, '_'), width: W, height: H, fps: FPS, duration: film.dur,
-  bgColor: film.bg ?? '#000000', editableDefault: true, markers, layers,
+  bgColor: BG, editableDefault: true, markers, layers,
   source: { engine: 'Because Video Studio seek(t) engine', final: final },
   caveats: [scenes.length ? 'Each scene is a ProRes 4444 layer with transparency: text and shapes inside a scene are pixels, not live text.'
     : 'This film predates the per-scene export: it is one layer.', 'Lottie animations and canvas effects are inside the scene layers.'] };

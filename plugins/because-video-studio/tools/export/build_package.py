@@ -218,6 +218,9 @@ def main():
     for L in m["layers"]:
         if L.get("from"):
             L["from"] = os.path.normpath(os.path.join(base, L["from"]))
+            real = os.path.realpath(L["from"])
+            if not (real.startswith(os.path.realpath(STUDIO) + os.sep) and os.path.isfile(real)):
+                M.die("layer %s: source file must be inside the studio folder: %s" % (L.get("id"), L["from"]))
         elif L["type"] in SUB and L.get("src") and not os.path.exists(os.path.join(out, L["src"])) and os.path.exists(M.abspath(m, L["src"])):
             L["from"] = M.abspath(m, L["src"])
     for f in m.get("fonts", []):

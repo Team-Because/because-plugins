@@ -44,6 +44,12 @@ def load(path):
     return normalize(m)
 
 
+def safe_rel(p):
+    """A package-relative path: not absolute, no drive, no .. segment."""
+    p = str(p).replace("\\", "/")
+    return bool(p) and not p.startswith("/") and ":" not in p and ".." not in p.split("/")
+
+
 def normalize(m):
     for k in ("name", "width", "height", "fps"):
         if k not in m:
@@ -54,11 +60,16 @@ def normalize(m):
     if "frames" not in m:
         m["frames"] = int(round(float(m["duration"]) * fps))
     m["duration"] = m["frames"] / fps
-    m.setdefault("slug", "".join(ch if ch.isalnum() else "_" for ch in m["name"]).strip("_"))
+    m.setdefault("slug", m["name"])
+    # the slug names files in the package: letters, digits, _ and - only, so it can never point elsewhere
+    m["slug"] = "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in str(m["slug"])).strip("_") or "film"
     m.setdefault("pixelAspect", 1)
     m.setdefault("bgColor", "#000000")
     m.setdefault("markers", [])
     m.setdefault("fonts", [])
+    for f in m["fonts"]:
+        if f.get("file") and not safe_rel(f["file"]):
+            die("font file must be a path inside the package: %s" % f["file"])
     m.setdefault("editableDefault", True)
     ids = set()
     layers = m.get("layers") or die("no 'layers'")
@@ -81,6 +92,8 @@ def normalize(m):
             die("layer %s: out (%s) must be after in (%s)" % (L["id"], L["out"], L["in"]))
         if t in ("footage", "image", "audio") and not L.get("src"):
             die("layer %s (%s) needs 'src'" % (L["id"], t))
+        if L.get("src") and not safe_rel(L["src"]):
+            die("layer %s: src must be a path inside the package (no absolute path, no ..): %s" % (L["id"], L["src"]))
         if t == "text" and "text" not in L:
             die("layer %s: text layer needs 'text'" % L["id"])
         tr = L.setdefault("transform", {})
