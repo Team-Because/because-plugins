@@ -40,7 +40,7 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get install -y wamerican
       - name: Tests
-        run: node --test tests/
+        run: node --test "tests/*.test.mjs"
       - name: Validate the plugin and the marketplace (Linux)
         if: runner.os == 'Linux'
         run: |
