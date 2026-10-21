@@ -83,6 +83,9 @@ re-run. Repeat until every score is 8+ and check passes. Look at a frame strip a
 -14 LUFS mix, poster and contact sheet, frame 0 of every file, a ledger row. Never hand over a file it printed FAIL or WARNING
 for. Look at frame 0 of the master yourself.
 
+Editors finish in Premiere Pro and After Effects: when the film is going to an editor, or they ask for layers, run the export
+skill after shipping (`node tools/export.mjs clients/<client>/videos/<video>/index.html --zip`).
+
 ## 6 · Review · touch 2
 Open the master file and show the contact sheet and scores in a few lines. Ask for notes as: timestamp, what, the change
 (`prompts/director-notes.md`), but accept them however they come. Log each note in `docs/ledger.md` with a class

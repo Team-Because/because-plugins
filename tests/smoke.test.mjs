@@ -46,8 +46,9 @@ test('no Mac-only or space-fragile patterns in tools', () => {
     [/\/opt\/homebrew|~\/Library|osascript/, 'Mac-only path or command'],
   ];
   const hits = [];
-  // paths.mjs/.py and check_index.py hold the deliberate Mac/Windows switch for the venv path
-  const exempt = ['reel.mjs', 'setup.mjs', 'paths.mjs', 'paths.py', 'check_index.py'];
+  // paths.mjs/.py and check_index.py hold the deliberate Mac/Windows switch for the venv path;
+  // build_package.py lists the system font folders of both Mac and Windows
+  const exempt = ['setup.mjs', 'paths.mjs', 'paths.py', 'check_index.py', 'build_package.py'];
   for (const f of code.filter((f) => !exempt.some((e) => f.endsWith(e)))) {
     readFileSync(f, 'utf8').split('\n').forEach((l, i) => {
       for (const [re, why] of bad) if (re.test(l)) hits.push(`${relative(PLUGIN, f)}:${i + 1} ${why}`);

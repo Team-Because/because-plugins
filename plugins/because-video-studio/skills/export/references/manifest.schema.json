@@ -1,0 +1,505 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "editable-export layer manifest",
+ "type": "object",
+ "required": [
+  "name",
+  "width",
+  "height",
+  "fps",
+  "layers"
+ ],
+ "anyOf": [
+  {
+   "required": [
+    "duration"
+   ]
+  },
+  {
+   "required": [
+    "frames"
+   ]
+  }
+ ],
+ "properties": {
+  "version": {
+   "const": 1
+  },
+  "name": {
+   "type": "string"
+  },
+  "slug": {
+   "type": "string"
+  },
+  "width": {
+   "type": "integer"
+  },
+  "height": {
+   "type": "integer"
+  },
+  "fps": {
+   "type": "number"
+  },
+  "duration": {
+   "type": "number"
+  },
+  "frames": {
+   "type": "integer"
+  },
+  "bgColor": {
+   "oneOf": [
+    {
+     "type": "string"
+    },
+    {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 3,
+     "maxItems": 4
+    },
+    {
+     "type": "null"
+    }
+   ]
+  },
+  "root": {
+   "type": "string"
+  },
+  "editableDefault": {
+   "type": "boolean"
+  },
+  "ease": {
+   "enum": [
+    "linear",
+    "ease",
+    "hold"
+   ]
+  },
+  "pixelAspect": {
+   "type": "number"
+  },
+  "markers": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "t",
+     "name"
+    ],
+    "properties": {
+     "t": {
+      "type": "number"
+     },
+     "name": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "fonts": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "family": {
+      "type": "string"
+     },
+     "postscript": {
+      "type": "string"
+     },
+     "file": {
+      "type": "string"
+     },
+     "from": {
+      "type": "string"
+     },
+     "license": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "source": {
+   "type": "object"
+  },
+  "mix": {
+   "type": "string"
+  },
+  "caveats": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "layers": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "type"
+    ],
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "type": {
+      "enum": [
+       "footage",
+       "image",
+       "text",
+       "solid",
+       "shape",
+       "null",
+       "audio"
+      ]
+     },
+     "in": {
+      "type": "number"
+     },
+     "out": {
+      "type": "number"
+     },
+     "srcIn": {
+      "type": "number"
+     },
+     "srcDuration": {
+      "type": "number"
+     },
+     "role": {
+      "enum": [
+       "main",
+       "live",
+       "baked",
+       "reference"
+      ]
+     },
+     "targets": {
+      "type": "array",
+      "items": {
+       "enum": [
+        "ae",
+        "premiere"
+       ]
+      }
+     },
+     "enabled": {
+      "type": "boolean"
+     },
+     "src": {
+      "type": "string"
+     },
+     "from": {
+      "type": "string"
+     },
+     "width": {
+      "type": "number"
+     },
+     "height": {
+      "type": "number"
+     },
+     "alpha": {
+      "type": "boolean"
+     },
+     "transform": {
+      "type": "object",
+      "properties": {
+       "anchor": {
+        "type": "array"
+       },
+       "position": {
+        "type": "array"
+       },
+       "scale": {
+        "type": "array"
+       },
+       "rotation": {
+        "type": "number"
+       },
+       "opacity": {
+        "type": "number"
+       }
+      }
+     },
+     "keyframes": {
+      "type": "object",
+      "properties": {
+       "position": {
+        "type": "array",
+        "items": {
+         "type": "array",
+         "prefixItems": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "array",
+           "items": {
+            "type": "number"
+           }
+          }
+         ]
+        }
+       },
+       "scale": {
+        "type": "array",
+        "items": {
+         "type": "array",
+         "prefixItems": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "array",
+           "items": {
+            "type": "number"
+           }
+          }
+         ]
+        }
+       },
+       "anchor": {
+        "type": "array",
+        "items": {
+         "type": "array",
+         "prefixItems": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "array",
+           "items": {
+            "type": "number"
+           }
+          }
+         ]
+        }
+       },
+       "rotation": {
+        "type": "array",
+        "items": {
+         "type": "array",
+         "prefixItems": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "number"
+          }
+         ]
+        }
+       },
+       "opacity": {
+        "type": "array",
+        "items": {
+         "type": "array",
+         "prefixItems": [
+          {
+           "type": "number"
+          },
+          {
+           "type": "number"
+          }
+         ]
+        }
+       }
+      },
+      "additionalProperties": false
+     },
+     "ease": {
+      "enum": [
+       "linear",
+       "ease",
+       "hold"
+      ]
+     },
+     "parent": {
+      "type": "string"
+     },
+     "matte": {
+      "type": "object",
+      "required": [
+       "layer"
+      ],
+      "properties": {
+       "layer": {
+        "type": "string"
+       },
+       "type": {
+        "enum": [
+         "alpha",
+         "alphaInverted",
+         "luma",
+         "lumaInverted"
+        ]
+       }
+      }
+     },
+     "blend": {
+      "type": "string"
+     },
+     "effects": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "matchName"
+       ]
+      }
+     },
+     "comment": {
+      "type": "string"
+     },
+     "label": {
+      "type": "integer"
+     },
+     "text": {
+      "type": "string"
+     },
+     "font": {
+      "type": "string"
+     },
+     "fontFamily": {
+      "type": "string"
+     },
+     "fontSize": {
+      "type": "number"
+     },
+     "color": {
+      "oneOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 3,
+        "maxItems": 4
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "justify": {
+      "enum": [
+       "left",
+       "center",
+       "right"
+      ]
+     },
+     "tracking": {
+      "type": "number"
+     },
+     "leading": {
+      "type": "number"
+     },
+     "allCaps": {
+      "type": "boolean"
+     },
+     "strokeColor": {
+      "oneOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 3,
+        "maxItems": 4
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "strokeWidth": {
+      "type": "number"
+     },
+     "box": {
+      "type": "array"
+     },
+     "anchorMode": {
+      "enum": [
+       "center",
+       "baseline"
+      ]
+     },
+     "shape": {
+      "enum": [
+       "rect",
+       "ellipse"
+      ]
+     },
+     "size": {
+      "type": "array"
+     },
+     "roundness": {
+      "type": "number"
+     },
+     "fill": {
+      "oneOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 3,
+        "maxItems": 4
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "stroke": {
+      "type": "object",
+      "properties": {
+       "color": {
+        "oneOf": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "array",
+          "items": {
+           "type": "number"
+          },
+          "minItems": 3,
+          "maxItems": 4
+         },
+         {
+          "type": "null"
+         }
+        ]
+       },
+       "width": {
+        "type": "number"
+       }
+      }
+     },
+     "gainDb": {
+      "type": "number"
+     },
+     "channels": {
+      "type": "integer"
+     },
+     "sampleRate": {
+      "type": "integer"
+     }
+    }
+   }
+  }
+ }
+}

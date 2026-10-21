@@ -76,11 +76,16 @@ const SCENES = [
   }},
 ];
 
+// Editable export (tools/export.mjs): window.SOLO = <scene index> draws only that scene on a transparent canvas, so each
+// scene becomes its own layer for After Effects and Premiere; the background colour becomes a solid layer.
+window.film.bg = BG;
+window.film.scenes = SCENES.map((s, i) => ({ i, from: s.from, to: Math.min(s.to, DUR), name: s.name ?? `scene ${i + 1}` }));
 function draw(t) {
   AUDIT = [];
   g.setTransform(1, 0, 0, 1, 0, 0);
-  g.fillStyle = BG; g.fillRect(0, 0, W, H);
-  for (const s of SCENES) if (t >= s.from && t < s.to) s.draw(t);
+  const solo = window.SOLO;
+  if (solo == null) { g.fillStyle = BG; g.fillRect(0, 0, W, H); } else g.clearRect(0, 0, W, H);
+  SCENES.forEach((s, i) => { if (t >= s.from && t < s.to && (solo == null || solo === i)) s.draw(t); });
 }
 window.seek = async (t) => { await window.ready; draw(t); return true; };
 window.audit = async (t) => { await window.seek(t); return { W, H, items: AUDIT }; };
