@@ -6,7 +6,7 @@
 //   no workers). Service workers and WebSockets are blocked and popups are closed. Anything else
 //   the page asks for, including file:// and every other host, is refused.
 import { chromium } from 'playwright';
-import { readFileSync, realpathSync, existsSync } from 'node:fs';
+import { readFileSync, realpathSync, existsSync, readdirSync } from 'node:fs';
 import { extname, resolve, sep, dirname, join } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
@@ -21,11 +21,18 @@ export const sandboxed = () => Boolean(process.env.FILM_SANDBOX_ROOTS);
 // studio's library and templates. Every tool that opens a film calls this first; child processes inherit it.
 export function autoSandbox(page) {
   if (sandboxed() || !page) return;
-  const vd = dirname(resolve(page));
+  const vd = realpathSync(dirname(resolve(page)));
   if (!existsSync(join(vd, 'docs', 'reel.json'))) return;
-  const studio = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-  const client = resolve(vd, '..', '..');
-  process.env.FILM_SANDBOX_ROOTS = JSON.stringify([vd, client, join(studio, 'library'), join(studio, 'templates')].filter(existsSync));
+  const studio = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '..'));
+  // a reel film must sit at <studio>/clients/<client>/videos/<slug>; anything else is refused, never opened unsealed
+  const parts = vd.slice(studio.length + 1).split(sep);
+  if (!vd.startsWith(studio + sep) || parts.length !== 4 || parts[0] !== 'clients' || parts[2] !== 'videos')
+    throw new Error(`reel films must live in clients/<client>/videos/<video> inside the studio, not ${vd}`);
+  const client = join(studio, 'clients', parts[1]);
+  const products = existsSync(join(client, 'products')) ? readdirSync(join(client, 'products')).map((p) => join(client, 'products', p, 'assets')) : [];
+  // only what a film loads: its own folder, the client's brand assets and fonts, product images, the studio library and engine
+  process.env.FILM_SANDBOX_ROOTS = JSON.stringify([vd, join(client, 'brand', 'assets'), join(client, 'brand', 'fonts'), ...products,
+    join(studio, 'library'), join(studio, 'templates')].filter(existsSync));
 }
 // Where a file on disk lives inside the sandbox origin.
 export const urlFor = (abs) => ORIGIN + pathToFileURL(abs).pathname;
