@@ -1,6 +1,6 @@
 ---
 name: setup
-description: One-time setup of the Because Video Studio on this computer (Mac or Windows) - installs the free tools, builds the studio folder, adds the ElevenLabs key and checks Higgsfield, then renders a 3 second test clip. Use when someone types setup, says "install the video studio", "set up because video studio", "it says setup has not run", "the video tools are not working", "repair my studio", or when the session note says setup is missing or out of date. Also use before the first video on a new computer.
+description: One-time setup of the Because Video Studio on this computer (Mac or Windows) - installs the free tools, builds the studio folder, adds the ElevenLabs key and checks Higgsfield, then renders a 3 second test clip. Use when someone types setup, says "set up the video studio", "set up the video studio on my computer", "get my computer ready for videos", "install the video studio", "set up because video studio", "it says setup has not run", "the video tools are not working", "repair my studio", or when the session note says setup is missing or out of date. Also use before the first video on a new computer.
 ---
 
 # Setup

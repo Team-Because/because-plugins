@@ -41,6 +41,17 @@ Tell the person in two or three lines: the package path, that each scene is a la
 Effects (Premiere gets the words baked in), and how to open it (the README has the steps). Films made before this version
 come out as one layer; say so.
 
+## Walking someone through opening it
+Many people asking for this are not technical. When they ask how to open it ("walk me through opening it in After Effects
+and Premiere"), open the `_editable` folder for them (`open <folder>` on Mac, `start "" "<folder>"` on Windows) and give
+one plain step at a time, naming the exact file:
+- **After Effects:** File, then Scripts, then Run Script File, then pick `<name>_AfterEffects.jsx`. It builds the whole video
+  as layers and saves a project next to it. If After Effects says scripts are not allowed, the setting is in Settings (Mac)
+  or Edit, Preferences (Windows), then Scripting & Expressions, then "Allow Scripts to Write Files and Access Network".
+- **Premiere Pro:** a new project, then File, then Import, then pick `<name>_premiere.xml`. If it asks where the files are,
+  choose the `video` and `audio` folders inside.
+Ask them to tell you what they see after each step; no jargon.
+
 ## Know the limits
 - Words are live in After Effects; shapes, images and effects inside a scene are pixels. A generic font (sans-serif) becomes
   Arial; a brand font needs installing from the client's fonts. Check line breaks on the first frame: browser and AE text
