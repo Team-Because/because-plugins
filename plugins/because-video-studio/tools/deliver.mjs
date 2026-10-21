@@ -5,7 +5,7 @@
 //   loop_check.mp4   with --loop: the last 1.5 s straight into the first 1.5 s, so the seam can be watched
 // With --loop it also measures the seam: mean pixel difference between the last frame shown (t = dur - 1/30)
 // and frame 0, which the loop plays next. A smooth loop differs by one frame of motion; a jump differs a lot.
-import { launch, openFilm } from './film-page.mjs';
+import { launch, openFilm, autoSandbox } from './film-page.mjs';
 import { spawnSync } from 'node:child_process';
 import { resolve, dirname, join } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -13,6 +13,7 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 
 const args = process.argv.slice(2);
 const page = args.find((a) => a.endsWith('.html'));
+autoSandbox(page);   // reel films always run sealed (film-page.mjs)
 const opt = (k, d) => { const i = args.indexOf('--' + k); return i >= 0 ? args[i + 1] : d; };
 if (!page || !opt('dur')) { console.error('usage: node tools/deliver.mjs <index.html> --dur 10 [--poster 2.5] [--loop]'); process.exit(1); }
 const DUR = +opt('dur'), W = +opt('w', 1080), H = +opt('h', 1920), Q = opt('q', ''), POSTER = +opt('poster', +(DUR * 0.4).toFixed(2));

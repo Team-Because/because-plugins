@@ -10,3 +10,5 @@ pyyaml==6.0.3
 qrcode==8.2
 beat-this==1.1.0
 faster-whisper
+av<17                  # av 17+ dropped an option faster-whisper 1.2.1 passes (TypeError: metadata_errors), 21-10-2026
+yt-dlp

@@ -6,9 +6,9 @@
 //   no workers). Service workers and WebSockets are blocked and popups are closed. Anything else
 //   the page asks for, including file:// and every other host, is refused.
 import { chromium } from 'playwright';
-import { readFileSync, realpathSync } from 'node:fs';
-import { extname, resolve, sep } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { readFileSync, realpathSync, existsSync } from 'node:fs';
+import { extname, resolve, sep, dirname, join } from 'node:path';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 
 export const ORIGIN = 'http://film.local';
 export const CSP_HEADER = "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; object-src 'none'; manifest-src 'none'; form-action 'none'; base-uri 'self'";
@@ -16,6 +16,17 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/ja
 
 const roots = () => (process.env.FILM_SANDBOX_ROOTS ? JSON.parse(process.env.FILM_SANDBOX_ROOTS).map((r) => realpathSync(r) + sep) : null);
 export const sandboxed = () => Boolean(process.env.FILM_SANDBOX_ROOTS);
+// A reel film's code is written after reading a reference someone pasted, so it always runs sealed: when a film's folder
+// has docs/reel.json and no sandbox is set yet, allow only its own folder, its client's folder (brand assets) and the
+// studio's library and templates. Every tool that opens a film calls this first; child processes inherit it.
+export function autoSandbox(page) {
+  if (sandboxed() || !page) return;
+  const vd = dirname(resolve(page));
+  if (!existsSync(join(vd, 'docs', 'reel.json'))) return;
+  const studio = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+  const client = resolve(vd, '..', '..');
+  process.env.FILM_SANDBOX_ROOTS = JSON.stringify([vd, client, join(studio, 'library'), join(studio, 'templates')].filter(existsSync));
+}
 // Where a file on disk lives inside the sandbox origin.
 export const urlFor = (abs) => ORIGIN + pathToFileURL(abs).pathname;
 

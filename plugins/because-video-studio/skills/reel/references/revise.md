@@ -1,0 +1,2 @@
+You are revising a code-built seek(t) film after a storyboard review. Apply the NOTE exactly and change nothing else. Keep the engine contract (pure function of time, T table, rec() calls, assets and fonts as listed, window.film unchanged unless the note needs it). If the note changes what a beat shows, keep the concept map's rule: brand content only, sourced from the listed assets or facts.
+Return ONE complete HTML document in a ```html block, no explanation.

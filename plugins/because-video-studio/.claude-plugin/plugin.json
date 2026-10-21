@@ -1,7 +1,7 @@
 {
   "name": "because-video-studio",
   "displayName": "Because Video Studio",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Make on-brand motion videos for any Team Because client: brief, three concepts, a checked film in every format.",
   "author": { "name": "Team Because" },
   "keywords": ["video", "motion", "reel"],

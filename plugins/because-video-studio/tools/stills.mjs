@@ -1,13 +1,14 @@
 // node tools/stills.mjs <index.html> [--times 0.05,0.4,...] [--every 0.5] [--dur 10] [--w 1080] [--h 1920] [--cols 6] [--out sheet.png] [--q '?fmt=1x1']
 // Renders chosen moments of a seek(t) film into one labelled contact sheet (for the critique loop).
 // Fails loudly on any page error, so a broken frame never passes review unnoticed.
-import { launch, openFilm } from './film-page.mjs';
+import { launch, openFilm, autoSandbox } from './film-page.mjs';
 import { resolve, dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { writeFileSync, rmSync } from 'node:fs';
 
 const args = process.argv.slice(2);
 const page = args.find((a) => a.endsWith('.html'));
+autoSandbox(page);   // reel films always run sealed (film-page.mjs)
 const opt = (k, d) => { const i = args.indexOf('--' + k); return i >= 0 ? args[i + 1] : d; };
 if (!page) { console.error('usage: node tools/stills.mjs <index.html> [--times a,b,c | --every 0.5] [--out sheet.png]'); process.exit(1); }
 const W = +opt('w', 1080), H = +opt('h', 1920), COLS = +opt('cols', 6), DUR = +opt('dur', 10);

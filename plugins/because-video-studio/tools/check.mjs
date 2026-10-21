@@ -11,7 +11,7 @@
 //   dead     no stretch longer than 3 s where the picture barely changes (rule: something new every 2-4 s), WARN
 //   end      the last 1.5 s is complete and still: every line fully typed, nothing still arriving (Aman, 16-10-2026: the tagline was
 //            cut off mid-word at the end of reel-contrast-v4 v1)
-import { launch, openFilm } from './film-page.mjs';
+import { launch, openFilm, autoSandbox } from './film-page.mjs';
 import { spawnSync } from 'node:child_process';
 import { resolve, dirname, join } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -19,6 +19,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 
 const args = process.argv.slice(2);
 const page = args.find((a) => a.endsWith('.html'));
+autoSandbox(page);   // reel films always run sealed (film-page.mjs)
 const opt = (k, d) => { const i = args.indexOf('--' + k); return i >= 0 ? args[i + 1] : d; };
 if (!page) { console.error('usage: node tools/check.mjs <video>/index.html [--step 0.1] [--fmt 9x16] [--no-sheets]'); process.exit(1); }
 const STEP = +opt('step', 0.1), TOL = 2, FRAME = 1 / 30;

@@ -7,7 +7,7 @@
 //   7. appends one line to <video>/docs/ledger.md (stage, minutes)
 // Output: <video>/out/<client>-<video>-<fmt>-v<N>.mp4, N one above the highest existing version.
 // --draft: 540 px wide, 24 fps, no subframes, master only (the animatic gate). Nothing is versioned.
-import { launch, openFilm } from './film-page.mjs';
+import { launch, openFilm, autoSandbox } from './film-page.mjs';
 import { spawnSync } from 'node:child_process';
 import { resolve, dirname, join, basename } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -15,6 +15,7 @@ import { writeFileSync, readdirSync, existsSync, appendFileSync, rmSync, readFil
 
 const args = process.argv.slice(2);
 const page = args.find((a) => a.endsWith('.html'));
+autoSandbox(page);   // reel films always run sealed (film-page.mjs)
 const opt = (k, d) => { const i = args.indexOf('--' + k); return i >= 0 ? args[i + 1] : d; };
 if (!page) { console.error('usage: node tools/ship.mjs <video>/index.html [--fps 30] [--sub 2] [--fmt 9x16] [--draft] [--skip-check]'); process.exit(1); }
 const DRAFT = args.includes('--draft');

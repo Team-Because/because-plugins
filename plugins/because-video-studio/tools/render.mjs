@@ -1,7 +1,7 @@
 // node tools/render.mjs <index.html> [--fps 30] [--dur 10] [--start 0] [--sub 1] [--w 1080] [--h 1920] [--out <dir>/out/silent.mp4] [--q '?fmt=1x1']
 // Walks time frame by frame through window.seek(t) in headless Chrome and pipes frames into ffmpeg.
 // --sub N renders N subframes per frame and blends them (motion blur). H.264, yuv420p, CRF 16.
-import { launch, openFilm } from './film-page.mjs';
+import { launch, openFilm, autoSandbox } from './film-page.mjs';
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
@@ -9,6 +9,7 @@ import { pathToFileURL } from 'node:url';
 
 const args = process.argv.slice(2);
 const page = args.find((a) => a.endsWith('.html'));
+autoSandbox(page);   // reel films always run sealed (film-page.mjs)
 const opt = (k, d) => { const i = args.indexOf('--' + k); return i >= 0 ? args[i + 1] : d; };
 if (!page) { console.error('usage: node tools/render.mjs <index.html> [--fps 30] [--dur 10] [--sub 1] [--out file.mp4]'); process.exit(1); }
 const FPS = +opt('fps', 30), DUR = +opt('dur', 10), START = +opt('start', 0), SUB = +opt('sub', 1), W = +opt('w', 1080), H = +opt('h', 1920);
