@@ -23,7 +23,9 @@ node tools/export.mjs clients/<client>/videos/<video>/index.html [--fmt 9x16] [-
 What it writes to `out/<client>-<video>-<fmt>_editable/`:
 | Item | For |
 |---|---|
-| `video/NN_<scene>_alpha_WxH.mov` | each scene alone, ProRes 4444 with transparency |
+| `video/NN_<scene>_alpha_WxH.mov` | each scene alone with its text, ProRes 4444 with transparency (Premiere, and After Effects with EDITABLE off) |
+| `video/NN_<scene>_art_alpha_WxH.mov` | the same scene without its words, under the live text in After Effects |
+| live text layers (After Effects) | every word the film draws, as editable text with its font, colour, size, position and fade keyframes |
 | background | a live solid in After Effects, a still on the bottom track in Premiere |
 | `audio/` | voice, music and sound effects as separate tracks, plus the final mix as a muted reference |
 | `data/captions.srt` | captions from the voiceover's word times, when the film has a voiceover |
@@ -35,10 +37,13 @@ What it writes to `out/<client>-<video>-<fmt>_editable/`:
 The export stacks the layers and compares them with the final render at three moments. `PASS` means the editor's package
 looks exactly like the approved film. A `FAIL` stops the handover: look at which moment differs.
 
-Tell the person in two or three lines: the package path, that each scene is a layer (text inside a scene is pixels, not live
-text), and how to open it (the README has the steps). Films made before this version come out as one layer; say so.
+Tell the person in two or three lines: the package path, that each scene is a layer and its words are live text in After
+Effects (Premiere gets the words baked in), and how to open it (the README has the steps). Films made before this version
+come out as one layer; say so.
 
 ## Know the limits
-- Text and shapes inside a scene are pixels in v1. To change a word, the editor masks over it or asks for a new export.
+- Words are live in After Effects; shapes, images and effects inside a scene are pixels. A generic font (sans-serif) becomes
+  Arial; a brand font needs installing from the client's fonts. Check line breaks on the first frame: browser and AE text
+  metrics differ slightly.
 - Lottie animations and canvas effects are inside the scene layers.
 - More detail on app quirks: `references/premiere-ae-notes.md`. The package format: `references/manifest.md`.
