@@ -42,7 +42,10 @@ function* files(dir) {
   }
 }
 
-test('no client names anywhere in the plugin', () => {
+// Single client words are told apart from ordinary English with the system dictionary; without one (Windows) every common
+// word would count as a client name, so the test skips there. CI runs it on Linux with a dictionary installed.
+const HAS_DICT = existsSync('/usr/share/dict/words');
+test('no client names anywhere in the plugin', { skip: !HAS_DICT && 'no /usr/share/dict/words on this machine (runs in CI on Linux)' }, () => {
   const re = new RegExp(`(?<![a-z0-9])(${terms().join('|')})(?![a-z0-9])`, 'i');
   const hits = [];
   for (const f of files(PLUGIN)) {

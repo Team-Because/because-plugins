@@ -32,7 +32,13 @@ const say = (t) => console.log(`\n== ${t}`);
 const ok = (t) => console.log(`  OK   ${t}`);
 const bad = (t, fix = '') => { fails.push(t); console.log(`  FAIL ${t}${fix ? `\n       -> ${fix}` : ''}`); };
 const warn = (t) => { warns.push(t); console.log(`  WARN ${t}`); };
-const run = (cmd, a, o = {}) => spawnSync(cmd, a, { encoding: 'utf8', shell: WIN, ...o });
+// On Windows, npm and npx are .cmd files that only start through the shell, and the shell does not quote: every argument
+// is quoted here so a folder like "Because Studio" stays one argument. Everything else starts directly, with no shell.
+const SHIMS = new Set(['npm', 'npx']);
+const q = (x) => (/[\s"&|<>^]/.test(x) ? `"${String(x).replace(/"/g, '\\"')}"` : String(x));
+const run = (cmd, a, o = {}) => (WIN && SHIMS.has(cmd)
+  ? spawnSync(q(cmd), a.map(q), { encoding: 'utf8', shell: true, ...o })
+  : spawnSync(cmd, a, { encoding: 'utf8', ...o }));
 const has = (cmd) => run(WIN ? 'where' : 'which', [cmd]).status === 0;
 
 function refreshPath() {

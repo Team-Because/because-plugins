@@ -1,0 +1,98 @@
+# Because Video Studio checks.
+#   checks:  every push and pull request, Linux + Windows, about a minute: tests and plugin validation.
+#   install: every release tag (v*) or by hand, on a clean Mac and a clean Windows machine: the real setup, a 3 s test
+#            render, a new client, a film shipped in one format and its Premiere/After Effects export. Heavier (several GB),
+#            so it does not run on every push. Tick "vox" when running by hand to also install the vox tools.
+name: ci
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      vox:
+        description: Also install the vox tools (soundfont, FluidSynth, BiRefNet; about 3 GB more)
+        type: boolean
+        default: false
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Dictionary for the client-name test (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y wamerican
+      - name: Tests
+        run: node --test tests/
+      - name: Validate the plugin and the marketplace (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude plugin validate plugins/because-video-studio --strict
+          claude plugin validate .
+
+  install:
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: checks
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      PLUGIN: plugins/because-video-studio
+      VOX_FLAG: ${{ inputs.vox && '--vox' || '' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: astral-sh/setup-uv@v10
+      # A person's setup installs these with Homebrew or winget; CI machines have neither ready, so they come first here
+      - name: ffmpeg (Mac)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
+      - name: Setup, as a person would run it
+        run: node "$PLUGIN/scripts/setup.mjs" --workspace "$RUNNER_TEMP/Because Studio" $VOX_FLAG
+      - name: A client, a film shipped, an editor package
+        run: |
+          cd "$RUNNER_TEMP/Because Studio"
+          node tools/new-client.mjs ci-brand "CI Brand"
+          node tools/new-video.mjs ci-brand smoke
+          node tools/check.mjs clients/ci-brand/videos/smoke/index.html
+          node tools/ship.mjs clients/ci-brand/videos/smoke/index.html --fmt 9x16
+          node tools/export.mjs clients/ci-brand/videos/smoke/index.html --fmt 9x16
+      - name: Keep the outputs for a look (7 days)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: studio-${{ runner.os }}
+          path: |
+            ${{ runner.temp }}/Because Studio/.setup-test/*.mp4
+            ${{ runner.temp }}/Because Studio/clients/ci-brand/videos/smoke/out/*.mp4
+            ${{ runner.temp }}/Because Studio/clients/ci-brand/videos/smoke/docs/check.md
+          retention-days: 7
