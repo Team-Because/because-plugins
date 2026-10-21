@@ -1,0 +1,6 @@
+# BiRefNet speaker cut-out (MIT), added to .venv-voice because it already holds torch 2.8. Installed by setup.mjs --vox.
+torchvision==0.23.0
+timm
+kornia
+einops
+pillow

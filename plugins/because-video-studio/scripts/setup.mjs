@@ -5,7 +5,9 @@
 //   tools/ templates/ library/ prompts/ recipes/ studio/ (copied from the plugin) + node_modules/ + .venv/ + clients/
 // Prints OK / WARN / FAIL lines; the setup skill explains them to the person in plain words.
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, statSync, createWriteStream } from 'node:fs';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { join, dirname, resolve } from 'node:path';
 import { homedir, platform } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -20,8 +22,9 @@ const CONFIG = join(CONFIG_DIR, 'config.json');
 const config = existsSync(CONFIG) ? JSON.parse(readFileSync(CONFIG, 'utf8')) : {};
 const WS = resolve(opt('workspace') ?? config.workspace ?? join(homedir(), 'Documents', 'Because Studio'));
 const VERSION = JSON.parse(readFileSync(join(PLUGIN, '.claude-plugin', 'plugin.json'), 'utf8')).version;
-const STUDIO_PARTS = ['tools', 'templates', 'library', 'prompts', 'recipes', 'studio', 'voice', 'package.json'];
-const VOICE = args.includes('--voice');
+const STUDIO_PARTS = ['tools', 'templates', 'library', 'prompts', 'recipes', 'studio', 'voice', 'vox', 'package.json'];
+const VOX = args.includes('--vox');
+const VOICE = args.includes('--voice') || VOX;   // vox uses the voice tools and their torch for the cut-out
 const VPY = WIN ? join(WS, '.venv', 'Scripts', 'python.exe') : join(WS, '.venv', 'bin', 'python');
 
 const fails = [], warns = [];
@@ -103,6 +106,58 @@ if (VOICE) {
   }
   const vi = existsSync(VVPY) ? run(VVPY, ['-c', 'import torch, transformers, pedalboard, pyloudnorm, demucs']) : { status: 1 };
   vi.status === 0 ? ok('voice tools') : bad('voice tools are not installed', 'Run setup with the voice step again; it needs about 2 GB and a good connection.');
+}
+
+if (VOX) {
+  say('vox  Vox reel tools (score engine, soundfont, FluidSynth, speaker cut-out)');
+  if (!CHECK && existsSync(VPY)) run('uv', ['pip', 'install', '-q', '--python', VPY, '-r', join(PLUGIN, 'requirements', 'vox.txt')], { stdio: 'inherit' });
+  const vimp = existsSync(VPY) ? run(VPY, ['-c', 'import pretty_midi, pedalboard, faster_whisper']) : { status: 1 };
+  vimp.status === 0 ? ok('score and caption packages') : bad('vox packages did not install', 'Run setup with the vox step again.');
+
+  // MuseScore General soundfont (MIT): resumable download with a size check, because a stalled download plays wrong
+  const SF2 = join(WS, 'soundfont', 'MuseScore_General.sf2'), SF2_BYTES = 215614036;
+  const SF2_URL = 'https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf2';
+  const size = () => (existsSync(SF2) ? statSync(SF2).size : 0);
+  if (!CHECK && size() !== SF2_BYTES) {
+    mkdirSync(dirname(SF2), { recursive: true });
+    console.log(`  downloading the instrument soundfont (216 MB, once)...`);
+    for (let tries = 0; tries < 4 && size() !== SF2_BYTES; tries++) {
+      const have = size();
+      const res = await fetch(SF2_URL, { headers: have ? { Range: `bytes=${have}-` } : {} });
+      if (!res.ok && res.status !== 206) break;
+      if (have && res.status !== 206) rmSync(SF2, { force: true });   // server ignored the range: start over
+      const out = createWriteStream(SF2, { flags: have && res.status === 206 ? 'a' : 'w' });
+      await pipeline(Readable.fromWeb(res.body), out);
+    }
+  }
+  size() === SF2_BYTES ? ok('soundfont') : bad(`soundfont is ${size()} of ${SF2_BYTES} bytes`, 'Run setup with the vox step again; it resumes.');
+
+  // FluidSynth renders the score: Homebrew on Mac, the official Windows build unpacked into <studio>/bin/fluidsynth
+  if (!CHECK && !has('fluidsynth')) {
+    if (MAC) pkgInstall('fluid-synth', '', 'FluidSynth');
+    if (WIN) {
+      const zip = join(WS, 'bin', 'fluidsynth.zip'), dir = join(WS, 'bin', 'fluidsynth');
+      mkdirSync(dir, { recursive: true });
+      const res = await fetch('https://github.com/FluidSynth/fluidsynth/releases/download/v2.6.1/fluidsynth-v2.6.1-win10-x64-cpp11.zip');
+      if (res.ok) { await pipeline(Readable.fromWeb(res.body), createWriteStream(zip)); run('tar', ['-xf', zip, '-C', dir]); rmSync(zip, { force: true }); }
+    }
+  }
+  const fsWin = WIN && existsSync(join(WS, 'bin', 'fluidsynth'));
+  has('fluidsynth') || fsWin ? ok('FluidSynth') : bad('FluidSynth is missing', hint('FluidSynth'));
+
+  // Speaker cut-out: Apple Vision on a Mac (built from source with swiftc), BiRefNet everywhere (MIT, in .venv-voice)
+  if (MAC) {
+    const bin = join(WS, 'bin', 'personmask');
+    if (!CHECK && !existsSync(bin) && has('swiftc')) { mkdirSync(dirname(bin), { recursive: true }); run('swiftc', ['-O', join(WS, 'vox', 'personmask.swift'), '-o', bin], { stdio: 'inherit' }); }
+    existsSync(bin) ? ok('Apple Vision cut-out') : warn('Apple Vision cut-out not built (needs Xcode command line tools: xcode-select --install). BiRefNet is used instead.');
+  }
+  const VVPY2 = WIN ? join(WS, '.venv-voice', 'Scripts', 'python.exe') : join(WS, '.venv-voice', 'bin', 'python');
+  if (!CHECK && existsSync(VVPY2)) {
+    run('uv', ['pip', 'install', '-q', '--python', VVPY2, '-r', join(PLUGIN, 'requirements', 'matte.txt')], { stdio: 'inherit' });
+    run(VVPY2, ['-c', 'from transformers import AutoModelForImageSegmentation as M; M.from_pretrained("ZhengPeng7/BiRefNet", revision="e2bf8e4460fc8fa32bba5ea4d94b3233d367b0e4", trust_remote_code=True)'], { stdio: 'inherit' });
+  }
+  const mimp = existsSync(VVPY2) ? run(VVPY2, ['-c', 'import torchvision, timm, kornia, einops']) : { status: 1 };
+  mimp.status === 0 ? ok('BiRefNet cut-out') : bad('the cut-out model did not install', 'Run setup with the vox step again.');
 }
 
 say('5/6  Keys and connectors');

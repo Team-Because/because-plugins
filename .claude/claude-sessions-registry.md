@@ -11,6 +11,7 @@ Registry file: `~/.claude/named-sessions.json`
 
 | Name | PID | Status | Created | Last Used | Msgs | Description |
 |---|---|---|---|---|---|---|
+| — | — | — | — | — | — | No sessions registered for this project yet |
 ---
 ## Quick Reference
 

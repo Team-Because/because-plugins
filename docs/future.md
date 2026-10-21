@@ -21,3 +21,10 @@ instead of reinvented. Each idea: what it is, the first cheap test, limits, and 
 - **Limits:** nothing is sent automatically; GitHub issues need repo access most of the team does not have.
 - **Who agrees:** Aman.
 - **Source:** https://github.com/obra/superpowers/issues (Session Diagnosis Report template)
+
+## Vox: halftone collage B-roll inserts (parked 21-10-2026)
+- **What:** cutaway collage clips between speaker shots, from gbro-collage-broll (MIT, about 1.5k stars).
+- **First cheap test:** one 3 s insert in an existing vox build, judged side by side with the build without it.
+- **Limits:** it animates with Gemini (paid per clip), so each insert needs a price and a yes.
+- **Who agrees:** Aman.
+- **Source:** https://github.com/pyang5166/gbro-collage-broll
