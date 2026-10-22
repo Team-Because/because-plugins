@@ -55,8 +55,9 @@ the client's own material. Ask the person to pick (AskUserQuestion). If they alr
 Ask for approval or a note. A note: change the film (`references/revise.md`), keep earlier notes applied, check, storyboard again.
 
 ## 5 · Approve and deliver
-Voice and music use ElevenLabs credits: name that before running. Write `docs/music-brief.txt` from the reference's measured
-tempo, key and energy (premium, restrained; no novelty effects). Then `node tools/reel-kit.mjs approve clients/<client>/videos/<slug>`:
+Voice: make each script line with the ElevenLabs connector first (`../video/references/voiceover.md`); no connector, no voice.
+Music is free and local: write `docs/music.json` from the reference's measured energy (`{"mood": "keynote", "turns": "3.2,9.8",
+"sections": "0:0,0.2:1,0.5:2,0.9:0"}`; premium, restrained, no novelty effects). Then `node tools/reel-kit.mjs approve clients/<client>/videos/<slug>`:
 voice, sound-alike music, mix, ship in every format, compare with the reference, audio check. Sound effects stay off unless the
 reference clearly has them (then `"sfx": true` in `docs/reel.json`).
 Look at the contact sheet and frame 0 yourself, read the compare numbers, and hand over: the file, the compare summary, and

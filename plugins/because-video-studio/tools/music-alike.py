@@ -51,7 +51,7 @@ def measure(path):
     s['penalty'] = round(2 * s['tempo_off'] + 10 * (1 - s['shape_r']) + (25 if s['early_fade'] else 0), 1)
     return s
 
-if not KEY: sys.exit('ElevenLabs key missing: run setup again to add it')
+if not KEY: sys.exit('No ElevenLabs key: use the free score instead (tools/music.py)')
 os.makedirs(os.path.join(vd, 'music-candidates'), exist_ok=True); res = []
 for i in range(N):
     p = os.path.join(vd, 'music-candidates', f'cand-{i + 1}.mp3')

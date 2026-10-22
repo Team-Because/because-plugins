@@ -77,7 +77,7 @@ jobs:
         if: runner.os == 'Windows'
         run: choco install ffmpeg -y --no-progress
       - name: Setup, as a person would run it
-        run: node "$PLUGIN/scripts/setup.mjs" --workspace "$RUNNER_TEMP/Because Studio" $VOX_FLAG
+        run: node "$PLUGIN/scripts/setup.mjs" --workspace "$RUNNER_TEMP/Because Studio" --music --connectors none $VOX_FLAG
       - name: A client, a film shipped, an editor package
         run: |
           cd "$RUNNER_TEMP/Because Studio"
@@ -86,6 +86,19 @@ jobs:
           node tools/check.mjs clients/ci-brand/videos/smoke/index.html
           node tools/ship.mjs clients/ci-brand/videos/smoke/index.html --fmt 9x16
           node tools/export.mjs clients/ci-brand/videos/smoke/index.html --fmt 9x16
+      - name: Music and voice, made on this computer (no keys)
+        run: |
+          cd "$RUNNER_TEMP/Because Studio"
+          PY=.venv/bin/python; [ -f .venv/Scripts/python.exe ] && PY=.venv/Scripts/python.exe
+          V=clients/ci-brand/videos/smoke
+          "$PY" tools/music.py $V --dur 8 --turns 3.5
+          mkdir -p $V/docs $V/vo-cache
+          echo '{"voice":"ci","end":6,"lines":[{"t":0.3,"text":"One line for the test."},{"t":3,"text":"And a second line."}]}' > $V/docs/script.json
+          ffmpeg -v error -f lavfi -i "sine=f=220:d=1.4" -ar 44100 $V/vo-cache/line-01.mp3
+          ffmpeg -v error -f lavfi -i "sine=f=330:d=1.2" -ar 44100 $V/vo-cache/line-02.mp3
+          "$PY" tools/voice.py $V
+          "$PY" tools/mix.py $V --dur 8
+          test -s $V/music.wav && test -s $V/vo.json && test -s $V/mix.wav
       - name: Keep the outputs for a look (7 days)
         if: always()
         uses: actions/upload-artifact@v7

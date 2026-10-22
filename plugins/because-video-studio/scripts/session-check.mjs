@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 // SessionStart hook. Whatever it prints goes to Claude as context; it prints nothing when all is well.
 // 1. Setup never ran, or the plugin was updated since: tell Claude to run setup before any video.
-// 2. The ElevenLabs key from the plugin settings (stored securely by Claude Code) is written to the workspace .env,
-//    because the studio tools read keys from there. The file is readable by this user only.
-import { existsSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -23,16 +21,8 @@ try { cfg = JSON.parse(readFileSync(CONFIG, 'utf8')); } catch {
   process.exit(0);
 }
 if (cfg.setup_version !== version || !cfg.done) {
-  console.log(`[because-video-studio] The plugin is ${version} but setup last ran for ${cfg.setup_version ?? 'nothing'}${cfg.done ? '' : ' and did not finish'}. Before the next video, run /because-video-studio:setup quietly (it only installs what changed) and tell the person in one line.`);
-}
-
-const key = process.env.CLAUDE_PLUGIN_OPTION_ELEVENLABS_API_KEY;
-if (key && cfg.workspace && existsSync(cfg.workspace)) {
-  const envFile = join(cfg.workspace, '.env');
-  const lines = existsSync(envFile) ? readFileSync(envFile, 'utf8').split('\n').filter((l) => l && !l.startsWith('ELEVEN_LABS_API_KEY=')) : [];
-  const next = [...lines, `ELEVEN_LABS_API_KEY=${key}`].join('\n') + '\n';
-  if (!existsSync(envFile) || readFileSync(envFile, 'utf8') !== next) {
-    writeFileSync(envFile, next);
-    try { chmodSync(envFile, 0o600); } catch {}
-  }
+  const ask = cfg.music === undefined
+    ? ' This computer has not chosen its optional extras yet: ask only the extras question from the setup skill (real-instrument music, ElevenLabs voiceovers, Higgsfield shots), then run setup with those answers.'
+    : ' Run it quietly with the remembered choices (it only installs what changed).';
+  console.log(`[because-video-studio] The plugin is ${version} but setup last ran for ${cfg.setup_version ?? 'nothing'}${cfg.done ? '' : ' and did not finish'}. Before the next video, run /because-video-studio:setup and tell the person in one line.${ask}`);
 }

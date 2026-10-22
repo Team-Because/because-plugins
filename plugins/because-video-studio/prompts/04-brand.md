@@ -11,7 +11,7 @@ The one-liner pointed at a real product. Three extra lines do the work: the URL,
 2. Create the video: `node tools/new-video.mjs <client-slug> <video-slug>` and fill in its `brief.md`.
    Start one Claude Code session per client, inside `clients/<client-slug>/`, and keep it.
    A second video in the same session is faster: the renderer, audio and export already exist.
-3. Voice (ElevenLabs) and generated media go through the FAL MCP server, so no API key goes in a prompt.
+3. Voice goes through the ElevenLabs connector and generated shots through the Higgsfield connector, so no API key goes in a prompt.
 
 ## The template
 
@@ -44,7 +44,7 @@ Before the full render, show me a contact sheet of one frame per beat.
 Add to the template:
 ```
 Add a character who explains the product in a short voiceover. Generate the voice with
-ElevenLabs through the FAL MCP server (fal). Keep the character on brand: same palette, simple shapes.
+the ElevenLabs connector. Keep the character on brand: same palette, simple shapes.
 ```
 
 ## Proof points from the course

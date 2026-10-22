@@ -57,7 +57,8 @@ Ask them to pick (AskUserQuestion, concept names as options, plus duration if st
 Films over 30 s: after the pick, write `docs/shotlist.md` and stop once more for their OK; long films drift without it.
 
 ## 3 · Build (no stops)
-1. Higgsfield clips, if the concept needs them: start them first in the background, each priced, logged in
+1. Higgsfield clips, only when Higgsfield tools are in this session and the concept needs them (otherwise build the shot in
+   code, and say once that connecting Higgsfield adds generated shots): start them first in the background, each priced, logged in
    `docs/generation_log.md` with a running total, and approved by the person. Stop and ask at 80% of the agreed budget.
 2. `docs/shotlist.md` (short form up to 30 s: time, what we see, motion, text, sound).
 3. Code `index.html` from the starter. It already has the contract the tools read; keep it:
@@ -68,8 +69,14 @@ Films over 30 s: after the pick, write `docs/shotlist.md` and stop once more for
      client's `library.yaml`, reuse it re-dressed in this brand; never bend a shot to fit a piece.
      Helpers in `blocks.js`: line, pill, wordCaptions, band, bloom, lockup, prop, cover, hop, squash, softTrack, clipFrame.
 4. Optional animatic for films over 20 s: `node tools/ship.mjs clients/<client>/videos/<video>/index.html --draft`.
-5. Voiceover, when the brief has one: `<python> tools/voice.py clients/<client>/videos/<video>` (ElevenLabs; costs credits, so
-   name it in the plan). Music: `tools/score.py` makes a free score in code; ElevenLabs music only with a yes.
+5. Voiceover, when the brief has one: `docs/script.json` (lines with start times from `T`), then the takes from the ElevenLabs
+   connector (`references/voiceover.md`), then `<python> tools/voice.py clients/<client>/videos/<video>`. No ElevenLabs tools
+   in this session: say so in one line, carry the words on screen and keep going; never ask for an API key.
+   Music, free and on this computer (real instruments when the music engine was picked in setup, the built-in score
+   otherwise; the tool chooses): `<python> tools/music.py clients/<client>/videos/<video> --dur <s> --mood keynote|warm
+   --turns <t1,t2>` (real sampled piano, strings and harp; turns = the 2-4 story turns from `T`). Then
+   `<python> tools/mix.py clients/<client>/videos/<video> --dur <s>`. `tools/score.py` (synth styles: festive fusion, santoor,
+   electronic pulse) only when the brief asks for that colour.
 
 ## 4 · Check loop (until clean, before they see anything)
 `node tools/check.mjs clients/<client>/videos/<video>/index.html` runs every format and writes `docs/check.md`. Fix every FAIL.

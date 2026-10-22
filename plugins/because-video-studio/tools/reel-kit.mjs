@@ -10,7 +10,8 @@
 //                                          reference's speed; prints the film's format, fps, length, key times and end time
 //   check <video>                          tools/check.mjs, then a timing check against the reference's big changes
 //   storyboard <video>                     the reference and our film side by side, one row per concept-map beat
-//   approve <video>                        voice (ElevenLabs), sound-alike music (ElevenLabs), mix, ship, compare, audio check
+//   approve <video>                        voice (ElevenLabs connector takes, or a key), music (free real-instrument score, or an
+//                                          ElevenLabs sound-alike when a key is set), mix, ship, compare, audio check
 // <video> is clients/<client>/videos/<slug>.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync } from 'node:fs';
@@ -185,9 +186,17 @@ function approve(vd) {
   const filmDur = +(readFileSync(join(vd, 'index.html'), 'utf8').match(/const DUR = ([0-9.]+)/)?.[1] ?? 0);
   const dur = +Math.max(f.dur, scriptEnd, filmDur).toFixed(2);
   if (s.sfx !== true) { s.sfx = false; save(vd, s); console.log('sound effects: off (set "sfx": true in docs/reel.json only when the reference has them)'); }
-  if (existsSync(join(vd, 'docs', 'script.json'))) { say('voice (ElevenLabs)'); run(PY, [T('voice.py'), vd]); }
-  if (!existsSync(join(vd, 'docs', 'music-brief.txt'))) writeFileSync(join(vd, 'docs', 'music-brief.txt'), 'Premium modern instrumental.');
-  say('music: sound-alike candidates fitted to the reference (ElevenLabs)'); run(PY, [T('music-alike.py'), vd, '--ref', s.refDir, '--dur', String(dur)]);
+  if (existsSync(join(vd, 'docs', 'script.json'))) { say('voice'); run(PY, [T('voice.py'), vd]); }
+  if (process.env.ELEVEN_LABS_API_KEY || /^ELEVEN_LABS_API_KEY=\S/m.test(existsSync(join(STUDIO, '.env')) ? readFileSync(join(STUDIO, '.env'), 'utf8') : '')) {
+    if (!existsSync(join(vd, 'docs', 'music-brief.txt'))) writeFileSync(join(vd, 'docs', 'music-brief.txt'), 'Premium modern instrumental.');
+    say('music: sound-alike candidates fitted to the reference (ElevenLabs)'); run(PY, [T('music-alike.py'), vd, '--ref', s.refDir, '--dur', String(dur)]);
+  } else {
+    // free route: the real-instrument score; docs/music.json can carry {"mood", "turns", "sections", "chords"} written from the reference
+    const m = existsSync(join(vd, 'docs', 'music.json')) ? json(join(vd, 'docs', 'music.json')) : {};
+    const a = [T('music.py'), vd, '--dur', String(dur), '--mood', m.mood ?? 'keynote'];
+    for (const k of ['turns', 'sections', 'chords']) if (m[k]) a.push('--' + k, String(m[k]));
+    say('music: real-instrument score made on this computer'); run(PY, a);
+  }
   say('mix'); run(PY, [T('mix.py'), vd, '--dur', String(dur)]);
   say('ship'); run('node', [T('ship.mjs'), join(vd, 'index.html')], { ok: true });
   const finals = readdirSync(join(vd, 'out')).filter((x) => /-v\d+\.mp4$/.test(x)).sort((a, b) => +a.match(/-v(\d+)/)[1] - +b.match(/-v(\d+)/)[1]);

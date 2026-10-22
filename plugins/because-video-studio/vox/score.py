@@ -34,14 +34,14 @@ from pedalboard import Compressor, Gain, HighpassFilter, Limiter, LowpassFilter,
 
 _STUDIO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SF2 = os.environ.get("VOX_SF2", os.path.join(_STUDIO, "soundfont", "MuseScore_General.sf2"))
-# FluidSynth: on PATH (Mac: brew fluid-synth), else the copy setup.mjs --vox unpacks into <studio>/bin/fluidsynth (Windows)
+# FluidSynth: on PATH (Mac: brew fluid-synth), else the copy setup.mjs unpacks into <studio>/bin/fluidsynth (Windows)
 def _fluidsynth():
     import shutil, glob
     found = shutil.which("fluidsynth")
     if found: return found
     hits = glob.glob(os.path.join(_STUDIO, "bin", "fluidsynth", "**", "fluidsynth.exe"), recursive=True)
     if hits: return hits[0]
-    raise RuntimeError("FluidSynth is not installed: run setup with the vox step (setup.mjs --vox)")
+    raise RuntimeError("FluidSynth is not installed: run the studio setup again")
 SF2_BYTES = 215614036  # the complete MuseScore_General.sf2; a stalled download is smaller and plays wrong
 SR = 48000
 
@@ -50,9 +50,9 @@ def check_soundfont(path=None):
     """Fail fast on a missing or partial soundfont (a download once stalled at 208 of 216 MB)."""
     p = path or SF2
     if not os.path.exists(p):
-        raise FileNotFoundError(f"soundfont missing: {p} (run setup.mjs --vox)")
+        raise FileNotFoundError(f"soundfont missing: {p} (run the studio setup again)")
     if os.path.getsize(p) != SF2_BYTES:
-        raise RuntimeError(f"soundfont incomplete: {os.path.getsize(p)} of {SF2_BYTES} bytes at {p}; run setup with the vox step again")
+        raise RuntimeError(f"soundfont incomplete: {os.path.getsize(p)} of {SF2_BYTES} bytes at {p}; run the studio setup again")
     return p
 
 CHORDS = {  # voicings (MIDI note names), mid register

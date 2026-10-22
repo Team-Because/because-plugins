@@ -80,7 +80,7 @@ made in code. Treat this as a multi-session production. Don't rush to a final re
 - ./refs/ : [video / frames / image library]. Take the grammar, never the content.
 - ./audio/track.wav : use it unchanged. Measure beats with beats.py first.
 - Skills available: [/remotion-best-practices | /hyperframes | /claude-animation].
-- APIs in .env: [ELEVENLABS_API_KEY, FAL_KEY]. Budget: [$X]. Be economical.
+- Connectors: [ElevenLabs for voice, Higgsfield for generated shots]. Music is made locally. Budget: [$X]. Be economical.
 
 ## Look
 [3-5 lines: palette, type, texture, camera language. Banned looks.]

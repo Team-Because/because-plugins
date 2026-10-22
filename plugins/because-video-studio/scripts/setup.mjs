@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // One-time setup for because-video-studio, on Mac and Windows. Safe to re-run: it only installs what is missing.
-//   node setup.mjs [--check] [--workspace <dir>] [--skip-test]
+//   node setup.mjs [--check] [--workspace <dir>] [--skip-test] [--music | --no-music] [--connectors higgsfield,elevenlabs | none]
 // Builds a studio workspace (default Documents/Because Studio) with the tree the tools expect:
 //   tools/ templates/ library/ prompts/ recipes/ studio/ (copied from the plugin) + node_modules/ + .venv/ + clients/
 // Prints OK / WARN / FAIL lines; the setup skill explains them to the person in plain words.
@@ -24,6 +24,12 @@ const WS = resolve(opt('workspace') ?? config.workspace ?? join(homedir(), 'Docu
 const VERSION = JSON.parse(readFileSync(join(PLUGIN, '.claude-plugin', 'plugin.json'), 'utf8')).version;
 const STUDIO_PARTS = ['tools', 'templates', 'library', 'prompts', 'recipes', 'studio', 'voice', 'vox', 'package.json'];
 const VOX = args.includes('--vox');
+// The person's choices, asked once by the setup skill and remembered for every re-run and plugin update:
+//   music       the free real-instrument music engine on this computer (about 220 MB); without it music comes from the
+//               built-in synth score (tools/score.py), so every video still has music
+//   connectors  which Claude connectors they use (higgsfield, elevenlabs); both optional, Claude checks them at video time
+const MUSIC = VOX || (args.includes('--music') || (config.music === true && !args.includes('--no-music')));
+const CONNECTORS = (opt('connectors') ?? (config.connectors ?? []).join(',')).split(',').map((x) => x.trim().toLowerCase()).filter((x) => x && x !== 'none');
 const VOICE = args.includes('--voice') || VOX;   // vox uses the voice tools and their torch for the cut-out
 const VPY = WIN ? join(WS, '.venv', 'Scripts', 'python.exe') : join(WS, '.venv', 'bin', 'python');
 
@@ -114,11 +120,12 @@ if (VOICE) {
   vi.status === 0 ? ok('voice tools') : bad('voice tools are not installed', 'Run setup with the voice step again; it needs about 2 GB and a good connection.');
 }
 
-if (VOX) {
-  say('vox  Vox reel tools (score engine, soundfont, FluidSynth, speaker cut-out)');
+if (MUSIC) {
+  // Music for every film, free and local: real sampled instruments (pretty_midi + FluidSynth + the MuseScore soundfont)
+  say('music  Music engine (real instruments: soundfont and FluidSynth, about 220 MB once)');
   if (!CHECK && existsSync(VPY)) run('uv', ['pip', 'install', '-q', '--python', VPY, '-r', join(PLUGIN, 'requirements', 'vox.txt')], { stdio: 'inherit' });
   const vimp = existsSync(VPY) ? run(VPY, ['-c', 'import pretty_midi, pedalboard, faster_whisper']) : { status: 1 };
-  vimp.status === 0 ? ok('score and caption packages') : bad('vox packages did not install', 'Run setup with the vox step again.');
+  vimp.status === 0 ? ok('score and caption packages') : bad('the music packages did not install', 'Run setup again.');
 
   // MuseScore General soundfont (MIT): resumable download with a size check, because a stalled download plays wrong
   const SF2 = join(WS, 'soundfont', 'MuseScore_General.sf2'), SF2_BYTES = 215614036;
@@ -136,7 +143,7 @@ if (VOX) {
       await pipeline(Readable.fromWeb(res.body), out);
     }
   }
-  size() === SF2_BYTES ? ok('soundfont') : bad(`soundfont is ${size()} of ${SF2_BYTES} bytes`, 'Run setup with the vox step again; it resumes.');
+  size() === SF2_BYTES ? ok('soundfont') : bad(`soundfont is ${size()} of ${SF2_BYTES} bytes`, 'Run setup again; it resumes the download.');
 
   // FluidSynth renders the score: Homebrew on Mac, the official Windows build unpacked into <studio>/bin/fluidsynth
   if (!CHECK && !has('fluidsynth')) {
@@ -151,6 +158,13 @@ if (VOX) {
   const fsWin = WIN && existsSync(join(WS, 'bin', 'fluidsynth'));
   has('fluidsynth') || fsWin ? ok('FluidSynth') : bad('FluidSynth is missing', hint('FluidSynth'));
 
+} else {
+  say('music  Music engine');
+  console.log('  skipped: music comes from the built-in score. Add real-instrument music any time with setup --music.');
+}
+
+if (VOX) {
+  say('vox  Vox reel extras (speaker cut-out)');
   // Speaker cut-out: Apple Vision on a Mac (built from source with swiftc), BiRefNet everywhere (MIT, in .venv-voice)
   if (MAC) {
     const bin = join(WS, 'bin', 'personmask');
@@ -166,10 +180,8 @@ if (VOX) {
   mimp.status === 0 ? ok('BiRefNet cut-out') : bad('the cut-out model did not install', 'Run setup with the vox step again.');
 }
 
-say('5/6  Keys and connectors');
-const env = existsSync(join(WS, '.env')) ? readFileSync(join(WS, '.env'), 'utf8') : '';
-/ELEVEN_LABS_API_KEY=\S+/.test(env) ? ok('ElevenLabs key') : warn('ElevenLabs key not set yet: add it in the plugin settings (/plugin, because-video-studio, Configure). Voiceover and AI music wait until then.');
-console.log('  (Higgsfield is a Claude connector: the setup skill checks it.)');
+say('5/6  Connectors');
+console.log(`  chosen: ${CONNECTORS.length ? CONNECTORS.join(', ') : 'none'} (Claude connectors, optional: the setup skill checks they are connected)`);
 
 say('6/6  Test render (3 s)');
 if (!CHECK && !args.includes('--skip-test') && !fails.length) {
@@ -182,7 +194,7 @@ if (!CHECK && !args.includes('--skip-test') && !fails.length) {
 
 if (!CHECK) {
   mkdirSync(CONFIG_DIR, { recursive: true });
-  writeFileSync(CONFIG, JSON.stringify({ ...config, workspace: WS, setup_version: VERSION, plugin_root: PLUGIN, os: platform(), done: !fails.length }, null, 2));
+  writeFileSync(CONFIG, JSON.stringify({ ...config, workspace: WS, music: MUSIC, connectors: CONNECTORS, setup_version: VERSION, plugin_root: PLUGIN, os: platform(), done: !fails.length }, null, 2));
 }
 console.log(`\n${fails.length ? `NOT READY: ${fails.length} problem(s)` : 'READY'}${warns.length ? `, ${warns.length} note(s)` : ''}. Workspace: ${WS}`);
 process.exit(fails.length ? 1 : 0);

@@ -1,16 +1,14 @@
 {
   "name": "because-video-studio",
   "displayName": "Because Video Studio",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Make on-brand motion videos for any Team Because client: brief, three concepts, a checked film in every format.",
-  "author": { "name": "Team Because" },
-  "keywords": ["video", "motion", "reel"],
-  "userConfig": {
-    "elevenlabs_api_key": {
-      "type": "string",
-      "title": "ElevenLabs API key",
-      "description": "Used for voiceover and music. Stored securely, never in a file in the plugin.",
-      "sensitive": true
-    }
-  }
+  "author": {
+    "name": "Team Because"
+  },
+  "keywords": [
+    "video",
+    "motion",
+    "reel"
+  ]
 }
