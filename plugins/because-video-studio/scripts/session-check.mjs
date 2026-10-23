@@ -11,6 +11,12 @@ const CONFIG = join(homedir(), '.because-video-studio', 'config.json');
 let version = '?';
 try { version = JSON.parse(readFileSync(join(PLUGIN, '.claude-plugin', 'plugin.json'), 'utf8')).version; } catch {}
 
+// A Cloud session runs on a Linux machine Anthropic hosts, not on the person's computer: the render engine download is
+// blocked there and nothing it makes reaches their Documents folder. Stop before setup starts.
+if (process.env.CLAUDE_CODE_REMOTE === 'true') {
+  console.log('[because-video-studio] This session runs in the Cloud, not on this person\'s computer, so the video studio cannot work here. If they ask for setup or a video, say in plain words: "This session is running in the cloud. Start a new session in Code, choose Local (not Cloud) and your Documents folder, then ask again." Do not run setup or any studio tool in this session.');
+  process.exit(0);
+}
 if (!existsSync(CONFIG)) {
   console.log('[because-video-studio] Setup has not run on this computer. If the person asks for a video, say in one plain sentence that a one-time setup (about 10 minutes) comes first, then run /because-video-studio:setup. Do not start a video before setup is done.');
   process.exit(0);

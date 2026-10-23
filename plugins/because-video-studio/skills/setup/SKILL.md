@@ -11,6 +11,11 @@ error output. Explain any problem in one line and say what you are doing about i
 Plugin folder: `${CLAUDE_PLUGIN_ROOT}`. The setup record lives in `~/.because-video-studio/config.json`
 (Windows: `%USERPROFILE%\.because-video-studio\config.json`).
 
+## 0. Check this is their computer
+If the session note says this is a Cloud session, or `echo $CLAUDE_CODE_REMOTE` prints `true`, stop: the studio only works
+on their own computer. Say: "This session is running in the cloud. Start a new session in Code, choose Local (not Cloud) and
+your Documents folder, then ask me again." Do not try workarounds such as another browser.
+
 ## 1. Say what is about to happen
 "I'm setting up your video studio. It installs a few free tools, takes about 10 minutes, and happens once. Your computer may
 ask for permission to install things; say yes."

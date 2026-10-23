@@ -12,6 +12,10 @@ import { join, dirname, resolve } from 'node:path';
 import { homedir, platform } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
+if (process.env.CLAUDE_CODE_REMOTE === 'true') {
+  console.log('  FAIL this session runs in the Cloud, not on this computer\n       -> Start a new session in Code with Local selected (not Cloud), choose the Documents folder, then run setup again.');
+  process.exit(1);
+}
 const PLUGIN = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WIN = platform() === 'win32', MAC = platform() === 'darwin';
 const args = process.argv.slice(2);

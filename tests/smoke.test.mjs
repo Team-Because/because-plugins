@@ -56,3 +56,12 @@ test('no Mac-only or space-fragile patterns in tools', () => {
   }
   assert.deepEqual(hits, []);
 });
+
+test('a Cloud session stops before setup starts', () => {
+  const env = { ...process.env, CLAUDE_CODE_REMOTE: 'true' };
+  const s = spawnSync(process.execPath, [join(PLUGIN, 'scripts', 'setup.mjs'), '--check'], { encoding: 'utf8', env });
+  assert.equal(s.status, 1);
+  assert.match(s.stdout, /Local/);
+  const h = spawnSync(process.execPath, [join(PLUGIN, 'scripts', 'session-check.mjs')], { encoding: 'utf8', env });
+  assert.match(h.stdout, /Cloud/);
+});
