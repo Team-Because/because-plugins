@@ -13,7 +13,8 @@ try { version = JSON.parse(readFileSync(join(PLUGIN, '.claude-plugin', 'plugin.j
 
 // A Cloud session runs on a Linux machine Anthropic hosts, not on the person's computer: the render engine download is
 // blocked there and nothing it makes reaches their Documents folder. Stop before setup starts.
-if (process.env.CLAUDE_CODE_REMOTE === 'true') {
+// EVAL_CLOUD_SESSION lets claude plugin eval act out a Cloud session: it passes only EVAL_* variables to the plugin.
+if (process.env.CLAUDE_CODE_REMOTE === 'true' || process.env.EVAL_CLOUD_SESSION === 'true') {
   console.log('[because-video-studio] This session runs in the Cloud, not on this person\'s computer, so the video studio cannot work here. If they ask for setup or a video, say in plain words: "This session is running in the cloud. Start a new session in Code, choose Local (not Cloud) and your Documents folder, then ask again." Do not run setup or any studio tool in this session.');
   process.exit(0);
 }

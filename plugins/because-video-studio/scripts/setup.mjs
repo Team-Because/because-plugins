@@ -12,7 +12,7 @@ import { join, dirname, resolve } from 'node:path';
 import { homedir, platform } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-if (process.env.CLAUDE_CODE_REMOTE === 'true') {
+if (process.env.CLAUDE_CODE_REMOTE === 'true' || process.env.EVAL_CLOUD_SESSION === 'true') {
   console.log('  FAIL this session runs in the Cloud, not on this computer\n       -> Start a new session in Code with Local selected (not Cloud), choose the Documents folder, then run setup again.');
   process.exit(1);
 }
