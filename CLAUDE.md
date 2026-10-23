@@ -12,6 +12,7 @@ Plan and decisions: `~/.claude/plans/virtual-drifting-puzzle.md`. Architecture b
 4. **Our engine by default.** The seek(t) engine builds every video unless the user names HyperFrames. Remotion is left out (company licence needed above 3 employees).
 5. **Paid calls ask first.** ElevenLabs and Higgsfield calls name the price and wait for a yes.
 6. **Before a release:** `claude plugin validate plugins/because-video-studio --strict` and `node --test "tests/*.test.mjs"` pass, and the version in `plugin.json` is bumped.
+8. **Evals on every change.** Any change to the plugin runs its evals (`plugins/because-video-studio/evals/`) before it is pushed: `cd plugins/because-video-studio && claude plugin eval . --tag release --trust-plugin --ablation none --allow-tools "Bash(node *)" "Bash(npm *)" "Bash(npx *)" --no-publish --max-cost-usd 3`. CI runs the same on every push and pull request and blocks the release install check on a failure. Every problem the team reports becomes a case there first, and the case must fail before the fix and pass after it. These run only for us, never on a team member's computer.
 7. **Remote:** private repo https://github.com/Team-Because/because-plugins (moved from Aman's account on 21-10-2026; share only this address with the team). Owner: the Team-Because GitHub account (because.subscription@gmail.com). qa-aman is a collaborator with write access and pushes from here. Keep it private: Claude Team org sync needs a private repo, and tests/client-names.yaml lists the clients.
 
 ## Layout on a user's machine
