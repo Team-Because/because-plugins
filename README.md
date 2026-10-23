@@ -54,10 +54,10 @@ Videos and clients live in `Documents/Because Studio/clients/` on each computer.
      version changes.
   3. Push to `master`, then tag it (`git tag v<version> && git push origin v<version>`). The tag runs the full install
      check on a clean Mac and a clean Windows machine (setup, a test render, music, voice placement, the editor export).
-- Evals, on every change: `plugins/because-video-studio/evals/` holds `claude plugin eval` cases (real Claude sessions
-  with the plugin, graded). Run them before pushing any plugin change (command in `CLAUDE.md`); CI runs them on every push
-  and pull request, and a failure blocks the release install check. They run only for us, never on a team member's
-  computer. CI signs in with the `CLAUDE_CODE_OAUTH_TOKEN` repo secret (made once a year with `claude setup-token`).
+- Evals, on every change: `evals/` (repo root, outside the plugin, so nothing reaches team members) holds `claude plugin eval` cases (real Claude sessions
+  with the plugin, graded). `.githooks/pre-push` runs them on the maintainer's computer before any push that changes the
+  plugin, and a failing case stops the push. After a fresh clone, run `git config core.hooksPath .githooks` once. They
+  never run on a team member's computer.
 - Every problem the team reports becomes an eval case first (`evals/<what-went-wrong>/`): it must fail before the fix and
   pass after it, so it cannot come back.
 - Keep the repo private: org sync needs it, and `tests/client-names.yaml` lists the clients.

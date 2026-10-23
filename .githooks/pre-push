@@ -1,0 +1,16 @@
+#!/bin/sh
+# Runs the plugin's evals (claude plugin eval, on this computer's Claude login) before any push that changes the plugin or its evals.
+# A failing case stops the push. Skip once with: git push --no-verify (only for a push that does not touch the plugin's behaviour).
+PLUGIN=plugins/because-video-studio
+changed=0
+while read local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "0000000000000000000000000000000000000000" ] && continue
+  case "$remote_sha" in 0000000000000000000000000000000000000000) range="$local_sha" ;; *) range="$remote_sha..$local_sha" ;; esac
+  git diff --name-only $range -- "$PLUGIN" evals | grep -q . && changed=1
+done
+[ "$changed" = 1 ] || exit 0
+echo "pre-push: the plugin changed, running its evals (about a minute)"
+claude plugin eval . --eval-dir evals --tag release --trust-plugin --ablation none \
+  --allow-tools "Bash(node *)" "Bash(npm *)" "Bash(npx *)" --no-publish --max-cost-usd 3 || {
+  echo "pre-push: an eval failed, so nothing was pushed. Fix it, or read the report path above."; exit 1; }
+rm -rf evals/results
