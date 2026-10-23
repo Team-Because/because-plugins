@@ -49,7 +49,8 @@ jobs:
           claude plugin validate .
 
   # Claude's own behaviour with the plugin, graded by claude plugin eval (plugins/because-video-studio/evals/). Real model
-  # calls, so only on a release tag or by hand, with a cost ceiling. Needs the ANTHROPIC_API_KEY repo secret.
+  # calls, so only on a release tag or by hand, with a cost ceiling. Signs in with the CLAUDE_CODE_OAUTH_TOKEN repo secret
+  # (made by `claude setup-token`, uses the Claude plan) or, failing that, an ANTHROPIC_API_KEY secret (Console billing).
   # Each case sets its own conditions in its prompt.md (the cloud case acts out a Cloud session, hit by the team on 23-10-2026).
   evals:
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
@@ -57,6 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v7
@@ -65,7 +67,7 @@ jobs:
           node-version: 22
       - name: Claude Code and the shell sandbox the eval runs need
         run: |
-          test -n "$ANTHROPIC_API_KEY" || { echo "::error::Add the ANTHROPIC_API_KEY repo secret to run the release evals"; exit 1; }
+          test -n "$CLAUDE_CODE_OAUTH_TOKEN$ANTHROPIC_API_KEY" || { echo "::error::Add the CLAUDE_CODE_OAUTH_TOKEN repo secret (claude setup-token) to run the release evals"; exit 1; }
           sudo apt-get install -y bubblewrap socat
           npm install -g @anthropic-ai/claude-code
       - name: Release evals

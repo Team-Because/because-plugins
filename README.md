@@ -55,6 +55,6 @@ Videos and clients live in `Documents/Because Studio/clients/` on each computer.
   3. Push to `master`, then tag it (`git tag v<version> && git push origin v<version>`). The tag first runs the evals
      (`plugins/because-video-studio/evals/`, `claude plugin eval`: real Claude sessions with the plugin, graded), then the
      full install check on a clean Mac and a clean Windows machine (setup, a test render, music, voice placement, the
-     editor export). A failing eval stops the install check. The evals need the `ANTHROPIC_API_KEY` repo secret.
+     editor export). A failing eval stops the install check. The evals sign in with the `CLAUDE_CODE_OAUTH_TOKEN` repo secret (made once a year with `claude setup-token`, uses the Claude plan).
   4. Every problem the team reports becomes an eval case first (`evals/<what-went-wrong>/`), so it cannot come back.
 - Keep the repo private: org sync needs it, and `tests/client-names.yaml` lists the clients.
