@@ -9,7 +9,8 @@ new version reaches them automatically.
 
 ## For the team
 
-1. Open the Claude app, click **Code**, start a new session and choose your Documents folder.
+1. Open the Claude app, click **Code**, start a new session with **Local** selected (not Cloud: a Cloud session runs on
+   Anthropic's machines and cannot make videos on yours) and choose your Documents folder.
 2. Type **Set up the video studio on my computer** and say yes when it asks. It takes about 15 minutes, once.
 3. Ask for a video in plain words.
 
