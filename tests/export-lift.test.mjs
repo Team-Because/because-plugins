@@ -6,9 +6,10 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { pathToFileURL } from 'node:url';
 
 const PLUGIN = join(import.meta.dirname, '..', 'plugins', 'because-video-studio');
-const L = await import(join(PLUGIN, 'tools', 'export-lift.mjs'));
+const L = await import(pathToFileURL(join(PLUGIN, 'tools', 'export-lift.mjs')).href);   // a URL, so Windows paths load too
 const circle = (r) => [{ v: [[r, 0], [0, r], [-r, 0], [0, -r]], i: [[0, -0.55 * r], [0.55 * r, 0], [0, 0.55 * r], [-0.55 * r, 0]], o: [[0, 0.55 * r], [-0.55 * r, 0], [0, -0.55 * r], [0.55 * r, 0]], closed: true }];
 const at = (M, paths) => paths.map((s) => ({ ...s, v: s.v.map(([x, y]) => [M[0] * x + M[2] * y + M[4], M[1] * x + M[3] * y + M[5]]),
   i: s.i.map(([x, y]) => [M[0] * x + M[2] * y, M[1] * x + M[3] * y]), o: s.o.map(([x, y]) => [M[0] * x + M[2] * y, M[1] * x + M[3] * y]) }));
