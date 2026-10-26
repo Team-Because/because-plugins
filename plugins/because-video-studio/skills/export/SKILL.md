@@ -26,6 +26,7 @@ What it writes to `out/<client>-<video>-<fmt>_editable/`:
 | `video/NN_<scene>_alpha_WxH.mov` | each scene alone with its text, ProRes 4444 with transparency (Premiere, and After Effects with EDITABLE off) |
 | `video/NN_<scene>_art_alpha_WxH.mov` | the same scene without its words, under the live text in After Effects |
 | live text layers (After Effects) | every word the film draws, as editable text with its font, colour, size, position and fade keyframes |
+| image layers (After Effects) | every logo, icon and photo file the film draws, as its own layer (`images/`) with its position, scale, rotation and fade keyframes |
 | background | a live solid in After Effects, a still on the bottom track in Premiere |
 | `audio/` | voice, music and sound effects as separate tracks, plus the final mix as a muted reference |
 | `data/captions.srt` | captions from the voiceover's word times, when the film has a voiceover |
@@ -37,8 +38,8 @@ What it writes to `out/<client>-<video>-<fmt>_editable/`:
 The export stacks the layers and compares them with the final render at three moments. `PASS` means the editor's package
 looks exactly like the approved film. A `FAIL` stops the handover: look at which moment differs.
 
-Tell the person in two or three lines: the package path, that each scene is a layer and its words are live text in After
-Effects (Premiere gets the words baked in), and how to open it (the README has the steps). Films made before this version
+Tell the person in two or three lines: the package path, that each scene is a layer and its words and images (logos, icons,
+photos) are separate layers in After Effects (Premiere gets them baked in), and how to open it (the README has the steps). Films made before this version
 come out as one layer; say so.
 
 ## Walking someone through opening it
@@ -53,7 +54,9 @@ one plain step at a time, naming the exact file:
 Ask them to tell you what they see after each step; no jargon.
 
 ## Know the limits
-- Words are live in After Effects; shapes, images and effects inside a scene are pixels. A generic font (sans-serif) becomes
+- Words and image files are separate layers in After Effects; shapes and effects drawn in code are pixels inside the scene.
+  An image stays inside the scene art when it is cropped, blended, filtered, shadowed or mirrored, or when something is
+  drawn over it (the export checks each scene and says so). A generic font (sans-serif) becomes
   Arial; a brand font needs installing from the client's fonts. Check line breaks on the first frame: browser and AE text
   metrics differ slightly.
 - Lottie animations and canvas effects are inside the scene layers.

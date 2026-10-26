@@ -71,20 +71,126 @@ await p.evaluate(() => {
     if (window.NO_TEXT) return;
     return maxW === undefined ? orig.call(this, text, x, y) : orig.call(this, text, x, y, maxW);
   };
+  // Live images: every image file drawn whole onto the film's canvas (logos, icons, product photos, uploads) is recorded
+  // the same way and can be left out (NO_IMG), so it becomes its own After Effects layer. Frame sequences, cropped draws,
+  // blend modes, filters and shadows stay in the scene art, where they look exactly as in the film.
+  const main = document.querySelector('canvas'), oimg = P.drawImage;
+  window.IMGLOG = []; window.IMGEL = {};
+  P.drawImage = function (im, ...a) {
+    const nw = im?.naturalWidth, nh = im?.naturalHeight;
+    const whole = a.length === 2 || a.length === 4 || (a.length === 8 && a[0] === 0 && a[1] === 0 && a[2] === nw && a[3] === nh);
+    if (window.IMGREC && this.canvas === main && im instanceof HTMLImageElement && nw > 0 && nh > 0 && whole
+      && !/\/\d{3,}\.(jpe?g|png|webp)$/i.test(im.src) && this.globalCompositeOperation === 'source-over'
+      && (!this.filter || this.filter === 'none') && !(this.shadowBlur > 0) && this.globalAlpha > 0.01) {
+      const d = a.length === 8 ? a.slice(4) : a.length === 4 ? a : [a[0], a[1], nw, nh], m = this.getTransform();
+      window.IMGEL[im.src] = im;
+      window.IMGLOG.push({ src: im.src, nw, nh, d: d.map(Number), alpha: this.globalAlpha, m: [m.a, m.b, m.c, m.d, m.e, m.f] });
+      if (window.NO_IMG) return;
+    }
+    return oimg.call(this, im, ...a);
+  };
 });
-async function renderScene(s, file, { noText }) {
+async function renderScene(s, file, { noText, noImg = false }) {
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'png', '-i', '-',
     '-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le', '-alpha_bits', '16', '-vendor', 'apl0', '-r', String(FPS), file], { stdio: ['pipe', 'inherit', 'inherit'] });
-  const canvas = await p.$('canvas'), N = Math.max(1, Math.round((s.to - s.from) * FPS)), frames = [];
+  const canvas = await p.$('canvas'), N = Math.max(1, Math.round((s.to - s.from) * FPS)), frames = [], imgFrames = [];
   for (let k = 0; k < N; k++) {
-    const log = await p.evaluate(async ([i, t, nt]) => { window.SOLO = i; window.NO_TEXT = nt; window.TEXTREC = nt; window.TEXTLOG = []; await window.seek(t); return window.TEXTLOG; }, [s.i, s.from + k / FPS, noText]);
-    frames.push(log.slice(0, 200));
+    const log = await p.evaluate(async ([i, t, nt, ni]) => { window.SOLO = i; window.NO_TEXT = nt; window.TEXTREC = nt; window.TEXTLOG = [];
+      window.NO_IMG = ni; window.IMGREC = ni; window.IMGLOG = []; await window.seek(t); return [window.TEXTLOG, window.IMGLOG]; }, [s.i, s.from + k / FPS, noText, noImg]);
+    frames.push(log[0].slice(0, 200)); imgFrames.push(log[1].slice(0, 100));
     const png = await canvas.screenshot({ omitBackground: true, type: 'png' });
     if (!ff.stdin.write(png)) await new Promise((r) => ff.stdin.once('drain', r));
   }
   ff.stdin.end(); await new Promise((r) => ff.on('close', r));
-  await p.evaluate(() => { window.NO_TEXT = false; window.TEXTREC = false; });
-  return { N, frames };
+  await p.evaluate(() => { window.NO_TEXT = false; window.TEXTREC = false; window.NO_IMG = false; window.IMGREC = false; });
+  return { N, frames, imgFrames };
+}
+// Each image drawn in a scene, followed across frames like text: the k-th draw of the same file in a frame is the same layer.
+// AE's image anchor is its centre, so position is where the drawn centre lands, and scale is relative to the raster file.
+function imageTracks(s, imgFrames) {
+  const tracks = new Map(), out = [];
+  imgFrames.forEach((log, k) => {
+    const seen = {};
+    for (const r of log) {
+      const key = `${r.src}#${seen[r.src] = (seen[r.src] ?? 0) + 1}`;
+      let tr = tracks.get(key);
+      if (tr && k - tr.last > 2) { out.push(tr); tr = null; }
+      if (!tr) { tr = { src: r.src, key, nw: r.nw, nh: r.nh, order: k * 1000 + log.indexOf(r), keys: [] }; tracks.set(key, tr); }
+      tr.keys.push([k, r]); tr.last = k;
+    }
+  });
+  out.push(...tracks.values());
+  // bottom to top in the order they are first drawn, which is the order After Effects stacks them
+  return out.sort((a, z) => a.order - z.order).slice(0, 100).map((tr) => {
+    tr.vals = tr.keys.map(([k, r]) => { const [a, b, c, d, e, f] = r.m, [dx, dy, dw, dh] = r.d, x = dx + dw / 2, y = dy + dh / 2;
+      return [s.from + k / FPS, { pos: [+(a * x + c * y + e).toFixed(1), +(b * x + d * y + f).toFixed(1)], sx: Math.hypot(a, b) * dw / tr.nw,
+        sy: Math.hypot(c, d) * dh / tr.nh, rot: +(Math.atan2(b, a) * 180 / Math.PI).toFixed(2), op: +(r.alpha * 100).toFixed(1) }]; });
+    tr.in = +(tr.keys[0][0] / FPS + s.from).toFixed(3); tr.out = +((tr.keys.at(-1)[0] + 1) / FPS + s.from).toFixed(3);
+    return tr;
+  });
+}
+// One PNG per image file, rendered by the browser at the largest size the film shows it (SVG logos included), capped to
+// the frame. The film canvas is hidden meanwhile so only the image is captured.
+const rasters = new Map();
+async function rasterFor(src, nw, nh, maxScale) {
+  const R = Math.min(Math.max(maxScale, 1), W / nw, H / nh), w = Math.max(1, Math.round(nw * R)), h = Math.max(1, Math.round(nh * R));
+  const have = rasters.get(src);
+  if (have && have.w >= w) return have;
+  const file = join(work, 'images', `${String(rasters.size + 1).padStart(2, '0')}_${basename(decodeURIComponent(new URL(src).pathname)).replace(/\.[^.]+$/, '').replace(/[^\w-]+/g, '-').slice(0, 40)}.png`);
+  mkdirSync(join(work, 'images'), { recursive: true });
+  await p.evaluate(([src, w, h]) => {
+    const c = document.createElement('canvas'); c.id = 'raster'; c.width = w; c.height = h;
+    for (const [k, v] of [['position', 'fixed'], ['left', '0'], ['top', '0'], ['width', w + 'px'], ['height', h + 'px'], ['background', 'transparent']]) c.style.setProperty(k, v, 'important');
+    document.querySelector('canvas').style.visibility = 'hidden'; document.body.append(c);
+    c.getContext('2d').drawImage(window.IMGEL[src], 0, 0, w, h);
+  }, [src, w, h]);
+  writeFileSync(file, await (await p.$('#raster')).screenshot({ omitBackground: true, type: 'png' }));
+  await p.evaluate(() => { document.getElementById('raster').remove(); document.querySelector('canvas').style.visibility = ''; });
+  const r = { file, w, h, R: w / nw }; rasters.set(src, r); return r;
+}
+// Stack the scene art and the image rasters exactly as After Effects will, at three moments, and compare with the scene
+// drawn normally. A miss (something drawn over an image, a mirrored image) means lifting it out would change the picture.
+async function imagesMatch(s, tracks) {
+  const shot = async (t, ni) => { const log = await p.evaluate(async ([i, t, ni]) => { window.SOLO = i; window.NO_TEXT = true; window.TEXTREC = false;
+    window.NO_IMG = ni; window.IMGREC = ni; window.IMGLOG = []; await window.seek(t); return window.IMGLOG; }, [s.i, t, ni]);
+    return [(await (await p.$('canvas')).screenshot({ omitBackground: true, type: 'png' })).toString('base64'), log]; };
+  let worst = 0;
+  for (const f of [0.25, 0.5, 0.8]) {
+    const t = s.from + Math.floor((s.to - s.from) * f * FPS) / FPS;
+    const [want] = await shot(t, false), [art, log] = await shot(t, true);
+    if (!log.length) continue;
+    // stack each draw at its layer's place, not its draw order in this frame
+    const seen = {}, at = (r) => { const key = `${r.src}#${seen[r.src] = (seen[r.src] ?? 0) + 1}`; const i = tracks.findIndex((tr) => tr.key === key && tr.in <= t + 1e-6 && t < tr.out); return i < 0 ? 1e9 : i; };
+    // each draw as After Effects will place it: centre, width and height, rotation, opacity (what imageLayers writes)
+    const place = (r) => { const [a, b, c, d, e, f] = r.m, [dx, dy, dw, dh] = r.d, x = dx + dw / 2, y = dy + dh / 2;
+      return { cx: a * x + c * y + e, cy: b * x + d * y + f, w: Math.hypot(a, b) * dw, h: Math.hypot(c, d) * dh, rot: Math.atan2(b, a) }; };
+    const draws = log.map((r) => ({ ...place(r), alpha: r.alpha, layer: at(r), raster: rasters.get(r.src) && readFileSync(rasters.get(r.src).file).toString('base64') })).sort((a, z) => a.layer - z.layer);
+    const share = await p.evaluate(async ([want, art, draws, W, H]) => {
+      const load = (b) => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = 'data:image/png;base64,' + b; });
+      const px = async (draw) => { const c = new OffscreenCanvas(W, H), g = c.getContext('2d'); await draw(g); return g.getImageData(0, 0, W, H).data; };
+      const A = await px(async (g) => g.drawImage(await load(want), 0, 0));
+      const B = await px(async (g) => { g.drawImage(await load(art), 0, 0);
+        for (const r of draws) { if (!r.raster) continue; g.save(); g.translate(r.cx, r.cy); g.rotate(r.rot); g.globalAlpha = r.alpha; g.drawImage(await load(r.raster), -r.w / 2, -r.h / 2, r.w, r.h); g.restore(); } });
+      let bad = 0; for (let i = 0; i < A.length; i += 4) if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) + Math.abs(A[i + 3] - B[i + 3]) > 120) bad++;
+      return bad / (W * H);
+    }, [want, art, draws, W, H]);
+    worst = Math.max(worst, share);
+  }
+  await p.evaluate(() => { window.NO_TEXT = false; window.NO_IMG = false; window.IMGREC = false; });
+  return worst < 0.002;
+}
+function imageLayers(n, tracks) {
+  return tracks.map((tr, j) => {
+    const r = rasters.get(tr.src), sc = (v) => [+(v.sx / r.R * 100).toFixed(2), +(v.sy / r.R * 100).toFixed(2)];
+    const keep = (get, tol) => { const ks = [tr.vals[0]]; for (let i = 1; i < tr.vals.length; i++) { const dv = [get(tr.vals[i][1])].flat().map((v, q) => Math.abs(v - [get(ks.at(-1)[1])].flat()[q])); if (Math.max(...dv) > tol || i === tr.vals.length - 1) ks.push(tr.vals[i]); } return ks; };
+    const kf = {}, first = tr.vals[0][1];
+    for (const [prop, get, tol] of [['position', (v) => v.pos, 0.75], ['opacity', (v) => v.op, 0.75], ['rotation', (v) => v.rot, 0.2], ['scale', sc, 0.25]]) {
+      const ks = keep(get, tol); if (ks.length > 2 || (ks.length === 2 && JSON.stringify(get(ks[0][1])) !== JSON.stringify(get(ks[1][1])))) kf[prop] = ks.map(([t, v]) => [+t.toFixed(3), get(v)]);
+    }
+    const name = basename(decodeURIComponent(new URL(tr.src).pathname)).slice(0, 32);
+    return { id: `s${n}i${String(j + 1).padStart(3, '0')}`, name, type: 'image', role: 'live', targets: ['ae'], from: r.file, src: `images/${basename(r.file)}`,
+      width: r.w, height: r.h, in: tr.in, out: tr.out, transform: { position: first.pos, scale: sc(first), rotation: first.rot, opacity: first.op }, keyframes: kf };
+  });
 }
 const WEIGHTS = { 100: 'Thin', 200: 'ExtraLight', 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'SemiBold', 700: 'Bold', 800: 'ExtraBold', 900: 'Black' };
 // After Effects wants a PostScript font name. A generic CSS family becomes the font every Mac and Windows machine has.
@@ -131,23 +237,31 @@ function textLayers(s, n, frames) {
       transform: { position: first.pos, scale: [first.sc, first.sc], rotation: first.rot, opacity: first.op }, keyframes: kf };
   });
 }
-let liveText = 0;
+let liveText = 0, liveImages = 0;
 if (scenes.length) {
   for (const s of scenes) {
     const n = String(s.i + 1).padStart(2, '0'), stem = `${n}_${s.name.replace(/[^\w-]+/g, '-')}`;
     const full = join(work, 'video', `${stem}_alpha_${W}x${H}.mov`), art = join(work, 'video', `${stem}_art_alpha_${W}x${H}.mov`);
     if (dirname(full) !== join(work, 'video')) throw new Error('bad scene name');
-    const a = await renderScene(s, art, { noText: true });
+    let a = await renderScene(s, art, { noText: true, noImg: true });
     const texts = textLayers(s, n, a.frames);
+    let tracks = imageTracks(s, a.imgFrames), note = '';
+    for (const tr of tracks) await rasterFor(tr.src, tr.nw, tr.nh, Math.max(...tr.vals.map(([, v]) => Math.max(v.sx, v.sy))));
+    if (tracks.length && !(await imagesMatch(s, tracks))) {
+      // the layers would not match the film here (something drawn over an image, or a mirrored image): keep this scene's
+      // images inside its art, as before
+      a = await renderScene(s, art, { noText: true }); tracks = []; note = ', images kept in the scene art (as separate layers they would not match the film)';
+    }
+    const images = imageLayers(n, tracks);
     await renderScene(s, full, { noText: false });
     const fullLayer = { id: `scene${n}`, name: s.name, type: 'footage', from: full, src: `video/${basename(full)}`, in: s.from, out: s.to, width: W, height: H, alpha: true };
-    if (texts.length) {
+    if (texts.length || images.length) {
       layers.push({ ...fullLayer, name: `${s.name} (with text)`, role: 'baked' },
         { id: `scene${n}art`, name: `${s.name} (art)`, type: 'footage', role: 'live', targets: ['ae'], from: art, src: `video/${basename(art)}`, in: s.from, out: s.to, width: W, height: H, alpha: true },
-        ...texts);
-      liveText += texts.length;
+        ...images, ...texts);
+      liveText += texts.length; liveImages += images.length;
     } else { rmSync(art, { force: true }); layers.push(fullLayer); }
-    console.log(`layer ${n} ${s.name}: ${s.from}-${s.to} s, ${a.N} frames, ${texts.length} live text layer(s)`);
+    console.log(`layer ${n} ${s.name}: ${s.from}-${s.to} s, ${a.N} frames, ${texts.length} live text layer(s), ${images.length} image layer(s)${note}`);
   }
 } else {
   console.log('this film has no window.film.scenes (made before the export switch): one layer, the final render');
@@ -184,8 +298,8 @@ if (existsSync(join(vd, 'vo.json'))) {
 const manifest = { version: 1, name: `${client} ${video} ${fmt}`, slug: slug.replace(/[^\w-]/g, '_'), width: W, height: H, fps: FPS, duration: film.dur,
   bgColor: BG, editableDefault: true, markers, layers,
   source: { engine: 'Because Video Studio seek(t) engine', final: final },
-  caveats: [scenes.length ? 'Each scene is a ProRes 4444 layer with transparency. In After Effects the words are live text layers over the scene art (fonts and positions follow the film; check line breaks on the first frame); Premiere uses the scene with its text baked in.'
-    : 'This film predates the per-scene export: it is one layer.', 'Lottie animations and canvas effects are inside the scene layers.'] };
+  caveats: [scenes.length ? 'Each scene is a ProRes 4444 layer with transparency. In After Effects the words are live text layers and every image file (logo, icon, photo) is its own layer with its motion as keyframes, over the scene art (fonts and positions follow the film; check line breaks on the first frame); Premiere uses the scene with its text and images baked in.'
+    : 'This film predates the per-scene export: it is one layer.', 'Shapes, Lottie animations and canvas effects are inside the scene layers, and so are images in a scene where separate layers would not match the film (something drawn over them, mirrored), or that are cropped, blended, filtered or shadowed.'] };
 writeFileSync(join(work, 'manifest.json'), JSON.stringify(manifest, null, 1));
 rmSync(pkg, { recursive: true, force: true });
 run(PY, [join(STUDIO, 'tools', 'export', 'build_package.py'), join(work, 'manifest.json'), '--out', pkg, '--pad-audio', ...(args.includes('--zip') ? ['--zip'] : [])]);
