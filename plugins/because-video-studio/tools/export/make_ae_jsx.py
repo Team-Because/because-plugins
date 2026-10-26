@@ -11,7 +11,7 @@ What it builds (bottom -> top, in manifest order):
   text             -> LIVE text layers: font (PostScript name), size, fill, stroke, tracking, leading,
                       justification, box text, in/out
   solid            -> solid layers
-  shape            -> shape layers (rect / rounded rect / ellipse, fill + stroke)
+  shape            -> shape layers (rect / rounded rect / ellipse, or the film's own paths; fill + stroke)
   null             -> null objects (for parenting / camera-like moves)
   audio            -> audio layers with gain
 plus transform (anchor, position, scale, rotation, opacity), sampled keyframes (linear / ease / hold),
@@ -127,12 +127,30 @@ RUNTIME = r"""
     var g = ly.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
     g.name = L.shape || "rect";
     var c = g.property("ADBE Vectors Group"), s;
-    if (L.shape === "ellipse") { s = c.addProperty("ADBE Vector Shape - Ellipse"); s.property("ADBE Vector Ellipse Size").setValue(L.size); }
+    if (L.shape === "path") {
+      // one path per sub-path, as the film drew it; pathKeys animate a path that changes form
+      for (var pi = 0; pi < L.paths.length; pi++) {
+        var pp = c.addProperty("ADBE Vector Shape - Group").property("ADBE Vector Shape");
+        pp.setValue(mkShape(L.paths[pi]));
+        if (L.pathKeys) {
+          var ts = [], vs = [];
+          for (var q = 0; q < L.pathKeys.length; q++) { ts.push(L.pathKeys[q][0]); vs.push(mkShape(L.pathKeys[q][1][pi])); }
+          pp.setValuesAtTimes(ts, vs);
+          for (q = 1; q <= pp.numKeys; q++) { try { pp.setInterpolationTypeAtKey(q, KeyframeInterpolationType.LINEAR); } catch (e10) {} }
+        }
+      }
+    } else if (L.shape === "ellipse") { s = c.addProperty("ADBE Vector Shape - Ellipse"); s.property("ADBE Vector Ellipse Size").setValue(L.size); }
     else { s = c.addProperty("ADBE Vector Shape - Rect"); s.property("ADBE Vector Rect Size").setValue(L.size);
       if (L.roundness) s.property("ADBE Vector Rect Roundness").setValue(L.roundness); }
-    if (L.stroke) { var k = c.addProperty("ADBE Vector Graphic - Stroke"); setColor(k.property("ADBE Vector Stroke Color"), L.stroke.color); k.property("ADBE Vector Stroke Width").setValue(L.stroke.width || 2); }
+    if (L.stroke) { var k = c.addProperty("ADBE Vector Graphic - Stroke"); setColor(k.property("ADBE Vector Stroke Color"), L.stroke.color); k.property("ADBE Vector Stroke Width").setValue(L.stroke.width || 2);
+      var CAP = { butt: 1, round: 2, square: 3 }, JOIN = { miter: 1, round: 2, bevel: 3 };
+      if (CAP[L.stroke.cap]) { try { k.property("ADBE Vector Stroke Line Cap").setValue(CAP[L.stroke.cap]); } catch (e11) {} }
+      if (JOIN[L.stroke.join]) { try { k.property("ADBE Vector Stroke Line Join").setValue(JOIN[L.stroke.join]); } catch (e12) {} } }
     if (L.fill !== null) { var f = c.addProperty("ADBE Vector Graphic - Fill"); setColor(f.property("ADBE Vector Fill Color"), L.fill || [1, 1, 1]); }
     return ly;
+  }
+  function mkShape(P) {
+    var sh = new Shape(); sh.vertices = P.v; sh.inTangents = P.i; sh.outTangents = P.o; sh.closed = P.closed; return sh;
   }
 
   var byId = {}, i, L, ly;

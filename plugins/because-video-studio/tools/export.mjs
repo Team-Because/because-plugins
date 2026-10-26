@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readdirSync, writeFileSync, readFileSync, rmSync
 import { join, dirname, resolve, basename, sep } from 'node:path';
 import { STUDIO, PY } from './paths.mjs';
 import { launch, openFilm, autoSandbox } from './film-page.mjs';
+import { recorder, liftScene, shapeLayer, shapeAt, groupBlend, keepKeys } from './export-lift.mjs';
 
 const args = process.argv.slice(2);
 const page = args.find((a) => a.endsWith('.html'));
@@ -90,20 +91,131 @@ await p.evaluate(() => {
     return oimg.call(this, im, ...a);
   };
 });
-async function renderScene(s, file, { noText, noImg = false }) {
+// Shapes, lines and every other drawing call (tools/export-lift.mjs), on top of the text and image switches above
+await p.evaluate(recorder);
+if (process.env.EXPORT_DEBUG) await p.evaluate(() => { window.EXPORT_DEBUG = true; });
+async function renderScene(s, file, { noText, noImg = false, only = null }) {
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'png', '-i', '-',
     '-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le', '-alpha_bits', '16', '-vendor', 'apl0', '-r', String(FPS), file], { stdio: ['pipe', 'inherit', 'inherit'] });
   const canvas = await p.$('canvas'), N = Math.max(1, Math.round((s.to - s.from) * FPS)), frames = [], imgFrames = [];
   for (let k = 0; k < N; k++) {
-    const log = await p.evaluate(async ([i, t, nt, ni]) => { window.SOLO = i; window.NO_TEXT = nt; window.TEXTREC = nt; window.TEXTLOG = [];
-      window.NO_IMG = ni; window.IMGREC = ni; window.IMGLOG = []; await window.seek(t); return [window.TEXTLOG, window.IMGLOG]; }, [s.i, s.from + k / FPS, noText, noImg]);
+    const log = await p.evaluate(async ([i, t, nt, ni, only]) => { window.SOLO = i; window.NO_TEXT = nt; window.TEXTREC = nt; window.TEXTLOG = [];
+      window.NO_IMG = ni; window.IMGREC = ni; window.IMGLOG = []; window.LIFT = only !== null; window.ONLY = only; window.DRAWLOG = []; window.__occ = {}; window.__prev = 'start';
+      await window.seek(t); return [window.TEXTLOG, window.IMGLOG]; }, [s.i, s.from + k / FPS, noText, noImg, only]);
     frames.push(log[0].slice(0, 200)); imgFrames.push(log[1].slice(0, 100));
     const png = await canvas.screenshot({ omitBackground: true, type: 'png' });
     if (!ff.stdin.write(png)) await new Promise((r) => ff.stdin.once('drain', r));
   }
   ff.stdin.end(); await new Promise((r) => ff.on('close', r));
-  await p.evaluate(() => { window.NO_TEXT = false; window.TEXTREC = false; window.NO_IMG = false; window.IMGREC = false; });
+  await p.evaluate(() => { window.NO_TEXT = false; window.TEXTREC = false; window.NO_IMG = false; window.IMGREC = false; window.LIFT = false; window.ONLY = null; });
   return { N, frames, imgFrames };
+}
+// One quick pass with nothing drawn: what each frame draws, in order (text, live items, pixel groups)
+async function analyse(s) {
+  const N = Math.max(1, Math.round((s.to - s.from) * FPS)), text = [], draw = [];
+  for (let k = 0; k < N; k++) {
+    const [tl, dl] = await p.evaluate(async ([i, t]) => { window.SOLO = i; window.NO_TEXT = true; window.TEXTREC = true; window.TEXTLOG = [];
+      window.LIFT = true; window.ONLY = '__none__'; window.DRAWLOG = []; window.__occ = {}; window.__prev = 'start';
+      await window.seek(t); return [window.TEXTLOG, window.DRAWLOG]; }, [s.i, s.from + k / FPS]);
+    text.push(tl.slice(0, 200)); draw.push(dl.slice(0, 400));
+  }
+  await p.evaluate(() => { window.NO_TEXT = false; window.TEXTREC = false; window.LIFT = false; window.ONLY = null; });
+  return { N, text, draw };
+}
+// The scene stacked exactly as After Effects will (pixel layers, image layers, shape layers in the stacking order) against
+// the scene drawn normally, at up to 8 moments. Text is left out of both, as in the image check.
+async function liftMatches(s, lift, draw, layerOf) {
+  const N = draw.length, ks = [...new Set([0.06, 0.2, 0.33, 0.46, 0.6, 0.73, 0.86, 0.97].map((f) => Math.min(N - 1, Math.floor(N * f))))];
+  const shot = async (k, only) => { await p.evaluate(async ([i, t, only]) => { window.SOLO = i; window.NO_TEXT = true; window.TEXTREC = false; window.NO_IMG = false; window.IMGREC = false;
+    window.LIFT = only !== null; window.ONLY = only; window.DRAWLOG = []; window.__occ = {}; window.__prev = 'start'; await window.seek(t); }, [s.i, s.from + k / FPS, only]);
+    return (await (await p.$('canvas')).screenshot({ omitBackground: true, type: 'png' })).toString('base64'); };
+  let worst = 0;
+  for (const k of ks) {
+    const t = s.from + k / FPS, want = await shot(k, null), steps = [];
+    for (const node of lift.order) {
+      const gr = lift.groups.find((g) => g.key === node);
+      if (gr) { if (gr.frames.includes(k)) steps.push({ px: await shot(k, node), blend: gr.blend }); continue; }
+      for (const r of draw[k].filter((d) => d.key === node)) {
+        if (r.kind === 'image') { const [a, b, c, d, e, f] = r.m, [dx, dy, dw, dh] = r.d, x = dx + dw / 2, y = dy + dh / 2, ras = rasters.get(r.src);
+          steps.push({ img: readFileSync(ras.file).toString('base64'), cx: a * x + c * y + e, cy: b * x + d * y + f, w: Math.hypot(a, b) * dw, h: (a * d - b * c) / (Math.hypot(a, b) || 1) * dh, rot: Math.atan2(b, a), alpha: r.alpha }); }
+        else { const L = layerOf(node, t); if (L) steps.push({ shape: shapeAt(L, t) }); }
+      }
+    }
+    const share = await p.evaluate(async ([want, steps, W, H]) => {
+      const load = (b) => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = 'data:image/png;base64,' + b; });
+      const OPS = { normal: 'source-over', add: 'lighter' };
+      const px = async (draw) => { const c = new OffscreenCanvas(W, H), g = c.getContext('2d'); await draw(g); return g.getImageData(0, 0, W, H).data; };
+      const A = await px(async (g) => g.drawImage(await load(want), 0, 0));
+      const B = await px(async (g) => {
+        for (const st of steps) {
+          g.save();
+          if (st.px) { g.globalCompositeOperation = OPS[st.blend] ?? st.blend ?? 'source-over'; g.drawImage(await load(st.px), 0, 0); }
+          else if (st.img) { g.translate(st.cx, st.cy); g.rotate(st.rot); g.scale(1, Math.sign(st.h) || 1); g.globalAlpha = st.alpha; const h = Math.abs(st.h); g.drawImage(await load(st.img), -st.w / 2, -h / 2, st.w, h); }
+          else {
+            const S = st.shape, path = new Path2D();
+            for (const sp of S.paths) {
+              path.moveTo(...sp.v[0]);
+              const n = sp.v.length, seg = (a, b) => path.bezierCurveTo(sp.v[a][0] + sp.o[a][0], sp.v[a][1] + sp.o[a][1], sp.v[b][0] + sp.i[b][0], sp.v[b][1] + sp.i[b][1], sp.v[b][0], sp.v[b][1]);
+              for (let j = 1; j < n; j++) seg(j - 1, j);
+              if (sp.closed) { seg(n - 1, 0); path.closePath(); }
+            }
+            g.translate(...S.pos); g.rotate(S.rot * Math.PI / 180); g.scale(S.sc[0] / 100, S.sc[1] / 100); g.globalAlpha = Math.max(0, Math.min(1, S.op / 100));
+            if (S.fill) { g.fillStyle = S.fill; g.fill(path); }
+            if (S.stroke) { g.strokeStyle = S.stroke.color; g.lineWidth = S.stroke.width; g.lineCap = S.stroke.cap; g.lineJoin = S.stroke.join; g.stroke(path); }
+          }
+          g.restore();
+        }
+      });
+      // a pixel counts only when its whole 3x3 block differs: edge smoothing (1-2 px) is not a difference, anything moved,
+      // missing or recoloured is
+      const m = new Uint8Array(W * H);
+      for (let i = 0, q = 0; i < A.length; i += 4, q++) m[q] = Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) + Math.abs(A[i + 3] - B[i + 3]) > 120 ? 1 : 0;
+      let bad = 0;
+      for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { const q = y * W + x;
+        if (m[q] && m[q - 1] && m[q + 1] && m[q - W] && m[q + W] && m[q - W - 1] && m[q - W + 1] && m[q + W - 1] && m[q + W + 1]) bad++; }
+      let dbg = null;
+      if (window.EXPORT_DEBUG) { const c = new OffscreenCanvas(W, H), g = c.getContext('2d'); g.putImageData(new ImageData(B, W, H), 0, 0);
+        dbg = await new Promise((ok) => c.convertToBlob().then((b) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(b); })); }
+      return [bad / (W * H), dbg];
+    }, [want, steps, W, H]).then(([v, dbg]) => { if (dbg) { writeFileSync(join(work, `debug_${s.i}_${k}_built.png`), Buffer.from(dbg.split(',')[1], 'base64')); writeFileSync(join(work, `debug_${s.i}_${k}_want.png`), Buffer.from(want, 'base64')); } return v; });
+    worst = Math.max(worst, share);
+  }
+  await p.evaluate(() => { window.NO_TEXT = false; window.LIFT = false; window.ONLY = null; });
+  return { ok: worst < 0.0002, worst };
+}
+// Every drawing call layered (tools/export-lift.mjs). Returns the scene's live layers bottom to top, or { fail }.
+async function liftAll(s, n, stem, draw) {
+  const lift = liftScene(draw);
+  if (lift.fail) return lift;
+  for (const gr of lift.groups) gr.blend = groupBlend(gr) ?? 'normal';
+  const shapes = new Map(), images = new Map(), out = [];
+  let si = 0, ii = 0;
+  for (const tr of lift.tracks) {
+    if (tr.kind === 'shape') { const L = shapeLayer(tr, `s${n}h${String(++si).padStart(3, '0')}`, s.from, FPS); (shapes.get(tr.key) ?? shapes.set(tr.key, []).get(tr.key)).push(L); }
+    else {
+      const it = imageTrackFrom(s, { src: tr.keys[0][1].src, nw: tr.keys[0][1].nw, nh: tr.keys[0][1].nh, keys: tr.keys });
+      await rasterFor(it.src, it.nw, it.nh, Math.max(...it.vals.map(([, v]) => Math.max(Math.abs(v.sx), Math.abs(v.sy)))));
+      (images.get(tr.key) ?? images.set(tr.key, []).get(tr.key)).push(it);
+    }
+  }
+  const layerOf = (node, t) => (shapes.get(node) ?? []).find((L) => L.in <= t + 1e-6 && t < L.out);
+  if (process.env.EXPORT_DEBUG) writeFileSync(join(work, `debug_${s.i}_lift.json`), JSON.stringify({ order: lift.order, groups: lift.groups.map((g) => ({ ...g, tags: [...g.tags], ops: [...g.ops] })), shapes: [...shapes.values()].flat() }, null, 1));
+  const check = await liftMatches(s, lift, draw, layerOf);
+  if (!check.ok) return { fail: `layers would not match the film (${(check.worst * 100).toFixed(2)}% of the picture differs)` };
+  let gi = 0;
+  for (const node of lift.order) {
+    const gr = lift.groups.find((g) => g.key === node);
+    if (gr) {
+      const file = join(work, 'video', `${stem}_fx${String(++gi).padStart(2, '0')}_alpha_${W}x${H}.mov`);
+      await renderScene(s, file, { noText: true, only: gr.key });
+      out.push({ id: `s${n}fx${String(gi).padStart(2, '0')}`, name: `${s.name}: ${[...gr.tags].join(', ')}`.slice(0, 60), type: 'footage', role: 'live', targets: ['ae'],
+        from: file, src: `video/${basename(file)}`, in: s.from, out: s.to, width: W, height: H, alpha: true, ...(gr.blend !== 'normal' ? { blend: gr.blend } : {}) });
+      continue;
+    }
+    for (const it of images.get(node) ?? []) out.push(...imageLayers(n, [it]).map((L) => ({ ...L, id: `s${n}i${String(++ii).padStart(3, '0')}` })));
+    out.push(...(shapes.get(node) ?? []));
+  }
+  return { layers: out, counts: { shapes: [...shapes.values()].flat().length, images: ii, pixels: gi } };
 }
 // Each image drawn in a scene, followed across frames like text: the k-th draw of the same file in a frame is the same layer.
 // AE's image anchor is its centre, so position is where the drawn centre lands, and scale is relative to the raster file.
@@ -121,13 +233,14 @@ function imageTracks(s, imgFrames) {
   });
   out.push(...tracks.values());
   // bottom to top in the order they are first drawn, which is the order After Effects stacks them
-  return out.sort((a, z) => a.order - z.order).slice(0, 100).map((tr) => {
-    tr.vals = tr.keys.map(([k, r]) => { const [a, b, c, d, e, f] = r.m, [dx, dy, dw, dh] = r.d, x = dx + dw / 2, y = dy + dh / 2;
-      return [s.from + k / FPS, { pos: [+(a * x + c * y + e).toFixed(1), +(b * x + d * y + f).toFixed(1)], sx: Math.hypot(a, b) * dw / tr.nw,
-        sy: Math.hypot(c, d) * dh / tr.nh, rot: +(Math.atan2(b, a) * 180 / Math.PI).toFixed(2), op: +(r.alpha * 100).toFixed(1) }]; });
-    tr.in = +(tr.keys[0][0] / FPS + s.from).toFixed(3); tr.out = +((tr.keys.at(-1)[0] + 1) / FPS + s.from).toFixed(3);
-    return tr;
-  });
+  return out.sort((a, z) => a.order - z.order).slice(0, 100).map((tr) => imageTrackFrom(s, tr));
+}
+function imageTrackFrom(s, tr) {
+  tr.vals = tr.keys.map(([k, r]) => { const [a, b, c, d, e, f] = r.m, [dx, dy, dw, dh] = r.d, x = dx + dw / 2, y = dy + dh / 2;
+    return [s.from + k / FPS, { pos: [+(a * x + c * y + e).toFixed(1), +(b * x + d * y + f).toFixed(1)], sx: Math.hypot(a, b) * dw / tr.nw,
+      sy: (a * d - b * c) / (Math.hypot(a, b) || 1) * dh / tr.nh, rot: +(Math.atan2(b, a) * 180 / Math.PI).toFixed(2), op: +(r.alpha * 100).toFixed(1) }]; });
+  tr.in = +(tr.keys[0][0] / FPS + s.from).toFixed(3); tr.out = +((tr.keys.at(-1)[0] + 1) / FPS + s.from).toFixed(3);
+  return tr;
 }
 // One PNG per image file, rendered by the browser at the largest size the film shows it (SVG logos included), capped to
 // the frame. The film canvas is hidden meanwhile so only the image is captured.
@@ -182,7 +295,7 @@ async function imagesMatch(s, tracks) {
 function imageLayers(n, tracks) {
   return tracks.map((tr, j) => {
     const r = rasters.get(tr.src), sc = (v) => [+(v.sx / r.R * 100).toFixed(2), +(v.sy / r.R * 100).toFixed(2)];
-    const keep = (get, tol) => { const ks = [tr.vals[0]]; for (let i = 1; i < tr.vals.length; i++) { const dv = [get(tr.vals[i][1])].flat().map((v, q) => Math.abs(v - [get(ks.at(-1)[1])].flat()[q])); if (Math.max(...dv) > tol || i === tr.vals.length - 1) ks.push(tr.vals[i]); } return ks; };
+    const keep = (get, tol) => keepKeys(tr.vals, get, tol);
     const kf = {}, first = tr.vals[0][1];
     for (const [prop, get, tol] of [['position', (v) => v.pos, 0.75], ['opacity', (v) => v.op, 0.75], ['rotation', (v) => v.rot, 0.2], ['scale', sc, 0.25]]) {
       const ks = keep(get, tol); if (ks.length > 2 || (ks.length === 2 && JSON.stringify(get(ks[0][1])) !== JSON.stringify(get(ks[1][1])))) kf[prop] = ks.map(([t, v]) => [+t.toFixed(3), get(v)]);
@@ -223,7 +336,7 @@ function textLayers(s, n, frames) {
     const sample = (r) => { const [a, b, c, d, e, f] = r.m, y = r.y + dy(r.base);
       return { pos: [+(a * r.x + c * y + e).toFixed(1), +(b * r.x + d * y + f).toFixed(1)], sc: +(Math.hypot(a, b) * 100).toFixed(2), rot: +(Math.atan2(b, a) * 180 / Math.PI).toFixed(2), op: +(r.alpha * 100).toFixed(1) }; };
     const vals = tr.keys.map(([k, r]) => [s.from + k / FPS, sample(r)]);
-    const keep = (get, tol) => { const ks = [vals[0]]; for (let i = 1; i < vals.length; i++) { const dv = [get(vals[i][1])].flat().map((v, q) => Math.abs(v - [get(ks.at(-1)[1])].flat()[q])); if (Math.max(...dv) > tol || i === vals.length - 1) ks.push(vals[i]); } return ks; };
+    const keep = (get, tol) => keepKeys(vals, get, tol);
     const kf = {}, first = vals[0][1];
     for (const [prop, get, tol] of [['position', (v) => v.pos, 0.75], ['opacity', (v) => v.op, 0.75], ['rotation', (v) => v.rot, 0.2]]) {
       const ks = keep(get, tol); if (ks.length > 2 || (ks.length === 2 && JSON.stringify(get(ks[0][1])) !== JSON.stringify(get(ks[1][1])))) kf[prop] = ks.map(([t, v]) => [+t.toFixed(3), get(v)]);
@@ -237,22 +350,36 @@ function textLayers(s, n, frames) {
       transform: { position: first.pos, scale: [first.sc, first.sc], rotation: first.rot, opacity: first.op }, keyframes: kf };
   });
 }
-let liveText = 0, liveImages = 0;
+let liveText = 0, liveImages = 0, liveShapes = 0;
 if (scenes.length) {
   for (const s of scenes) {
     const n = String(s.i + 1).padStart(2, '0'), stem = `${n}_${s.name.replace(/[^\w-]+/g, '-')}`;
     const full = join(work, 'video', `${stem}_alpha_${W}x${H}.mov`), art = join(work, 'video', `${stem}_art_alpha_${W}x${H}.mov`);
     if (dirname(full) !== join(work, 'video')) throw new Error('bad scene name');
-    let a = await renderScene(s, art, { noText: true, noImg: true });
-    const texts = textLayers(s, n, a.frames);
-    let tracks = imageTracks(s, a.imgFrames), note = '';
-    for (const tr of tracks) await rasterFor(tr.src, tr.nw, tr.nh, Math.max(...tr.vals.map(([, v]) => Math.max(v.sx, v.sy))));
+    // first choice: every drawing call layered (shapes, lines, images live; glows, gradients, animations as pixel layers)
+    const an = await analyse(s), texts = textLayers(s, n, an.text);
+    const all = await liftAll(s, n, stem, an.draw);
+    let a = { N: an.N }, images = [], note = '';
+    if (!all.fail) {
+      rmSync(art, { force: true });
+      await renderScene(s, full, { noText: false });
+      layers.push({ id: `scene${n}`, name: `${s.name} (with text)`, type: 'footage', role: 'baked', from: full, src: `video/${basename(full)}`, in: s.from, out: s.to, width: W, height: H, alpha: true },
+        ...all.layers, ...texts);
+      liveText += texts.length; liveImages += all.counts.images; liveShapes += all.counts.shapes;
+      console.log(`layer ${n} ${s.name}: ${s.from}-${s.to} s, ${an.N} frames, fully layered: ${all.counts.shapes} shape, ${all.counts.images} image, ${texts.length} text, ${all.counts.pixels} pixel layer(s)`);
+      continue;
+    }
+    note = `, not fully layered (${all.fail})`;
+    // otherwise: images and text as live layers over the scene art (0.8.2), or text only
+    a = await renderScene(s, art, { noText: true, noImg: true });
+    let tracks = imageTracks(s, a.imgFrames);
+    for (const tr of tracks) await rasterFor(tr.src, tr.nw, tr.nh, Math.max(...tr.vals.map(([, v]) => Math.max(Math.abs(v.sx), Math.abs(v.sy)))));
     if (tracks.length && !(await imagesMatch(s, tracks))) {
       // the layers would not match the film here (something drawn over an image, or a mirrored image): keep this scene's
       // images inside its art, as before
-      a = await renderScene(s, art, { noText: true }); tracks = []; note = ', images kept in the scene art (as separate layers they would not match the film)';
+      a = await renderScene(s, art, { noText: true }); tracks = []; note += ', images kept in the scene art (as separate layers they would not match the film)';
     }
-    const images = imageLayers(n, tracks);
+    images = imageLayers(n, tracks);
     await renderScene(s, full, { noText: false });
     const fullLayer = { id: `scene${n}`, name: s.name, type: 'footage', from: full, src: `video/${basename(full)}`, in: s.from, out: s.to, width: W, height: H, alpha: true };
     if (texts.length || images.length) {
@@ -298,8 +425,8 @@ if (existsSync(join(vd, 'vo.json'))) {
 const manifest = { version: 1, name: `${client} ${video} ${fmt}`, slug: slug.replace(/[^\w-]/g, '_'), width: W, height: H, fps: FPS, duration: film.dur,
   bgColor: BG, editableDefault: true, markers, layers,
   source: { engine: 'Because Video Studio seek(t) engine', final: final },
-  caveats: [scenes.length ? 'Each scene is a ProRes 4444 layer with transparency. In After Effects the words are live text layers and every image file (logo, icon, photo) is its own layer with its motion as keyframes, over the scene art (fonts and positions follow the film; check line breaks on the first frame); Premiere uses the scene with its text and images baked in.'
-    : 'This film predates the per-scene export: it is one layer.', 'Shapes, Lottie animations and canvas effects are inside the scene layers, and so are images in a scene where separate layers would not match the film (something drawn over them, mirrored), or that are cropped, blended, filtered or shadowed.'] };
+  caveats: [scenes.length ? 'In After Effects every word is a live text layer, every image file (logo, icon, photo) an image layer and every plain-colour shape or line a shape layer, each with its motion as keyframes; glows, gradients, shadows and animations are pixel layers with their blend mode (fonts and positions follow the film; check line breaks on the first frame). Premiere uses each scene with everything baked in.'
+    : 'This film predates the per-scene export: it is one layer.', 'A scene the export could not fully layer (the run says "not fully layered") has its words and images over one scene art layer instead.'] };
 writeFileSync(join(work, 'manifest.json'), JSON.stringify(manifest, null, 1));
 rmSync(pkg, { recursive: true, force: true });
 run(PY, [join(STUDIO, 'tools', 'export', 'build_package.py'), join(work, 'manifest.json'), '--out', pkg, '--pad-audio', ...(args.includes('--zip') ? ['--zip'] : [])]);

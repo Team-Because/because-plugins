@@ -86,7 +86,17 @@ jobs:
           node tools/new-video.mjs ci-brand smoke
           node tools/check.mjs clients/ci-brand/videos/smoke/index.html
           node tools/ship.mjs clients/ci-brand/videos/smoke/index.html --fmt 9x16
-          node tools/export.mjs clients/ci-brand/videos/smoke/index.html --fmt 9x16
+          node tools/export.mjs clients/ci-brand/videos/smoke/index.html --fmt 9x16 | tee export.log
+      - name: The editor package is fully layered (shapes live, the glow its own pixel layer)
+        run: |
+          cd "$RUNNER_TEMP/Because Studio"
+          ! grep -q "not fully layered" export.log
+          node -e "
+            const m = require('./clients/ci-brand/videos/smoke/out/ci-brand-smoke-9x16_editable/manifest.json');
+            const n = (f) => m.layers.filter(f).length;
+            const shapes = n((L) => L.type === 'shape' && L.shape === 'path'), fx = n((L) => L.type === 'footage' && L.role === 'live'), text = n((L) => L.type === 'text');
+            console.log({ shapes, fx, text });
+            if (!shapes || !fx || !text) process.exit(1);"
       - name: Music and voice, made on this computer (no keys)
         run: |
           cd "$RUNNER_TEMP/Because Studio"

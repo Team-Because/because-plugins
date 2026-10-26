@@ -48,7 +48,7 @@ By type:
 | `image` | `src` (`images/…`), `width`, `height` (natural size; layout scaling goes into `scale`) |
 | `text` | `text` (`\n` = new line), `font` (PostScript name, e.g. `Inter-Bold`), `fontFamily`, `fontSize` (px), `color`, `justify` (`left`/`center`/`right`), `tracking` (1/1000 em), `leading` (px), `allCaps`, `strokeColor`, `strokeWidth`, `box` ([w,h] → paragraph text), `anchorMode`: `center` (default; position = centre of the text's bounds, matches what probe_layers samples) or `baseline` (AE native: position = baseline start/centre) |
 | `solid` | `color`, `size` ([w,h], default comp size) |
-| `shape` | `shape` (`rect`/`ellipse`), `size` [w,h], `roundness` (px), `fill` (colour or `null`), `stroke` `{ "color", "width" }` |
+| `shape` | `shape` (`rect`/`ellipse`/`path`), `size` [w,h], `roundness` (px), `fill` (colour or `null`), `stroke` `{ "color", "width", "cap", "join" }`; for `path`: `paths` `[{ "v": [[x,y]…], "i": […], "o": […], "closed" }]` (AE vertices with in/out tangents, layer space) and optional `pathKeys` `[[t, paths], …]` for a path that changes form |
 | `null` | – (parenting / rig) |
 | `audio` | `src` (`audio/…`), `gainDb`, `channels`, `sampleRate` |
 

@@ -24,7 +24,8 @@ What it writes to `out/<client>-<video>-<fmt>_editable/`:
 | Item | For |
 |---|---|
 | `video/NN_<scene>_alpha_WxH.mov` | each scene alone with its text, ProRes 4444 with transparency (Premiere, and After Effects with EDITABLE off) |
-| `video/NN_<scene>_art_alpha_WxH.mov` | the same scene without its words, under the live text in After Effects |
+| live shape layers (After Effects) | every shape and line drawn in a plain colour (boxes, rounded boxes, circles, lines, curves, backgrounds) as an After Effects shape layer: its path, fill or stroke colour and width, and its motion as position, scale, rotation and fade keyframes (a shape that changes form, like a ring filling up, gets path keyframes) |
+| `video/NN_<scene>_fxNN_alpha_WxH.mov` | everything else, one layer per run of drawing: glows, gradients, shadows, Lottie and other animations, AI clips, masked or cropped drawing; each keeps its blend mode (a glow comes in as Screen) |
 | live text layers (After Effects) | every word the film draws, as editable text with its font, colour, size, position and fade keyframes |
 | image layers (After Effects) | every logo, icon and photo file the film draws, as its own layer (`images/`) with its position, scale, rotation and fade keyframes |
 | background | a live solid in After Effects, a still on the bottom track in Premiere |
@@ -35,11 +36,13 @@ What it writes to `out/<client>-<video>-<fmt>_editable/`:
 | `README.md` | how to open both, the layer table, what is live and what is pixels |
 
 ## Read the check, then hand over
-The export stacks the layers and compares them with the final render at three moments. `PASS` means the editor's package
+The export stacks the layers and compares them with the final render at three moments (and each scene with its live
+layers at up to eight). `PASS` means the editor's package
 looks exactly like the approved film. A `FAIL` stops the handover: look at which moment differs.
 
 Tell the person in two or three lines: the package path, that each scene is a layer and its words and images (logos, icons,
-photos) are separate layers in After Effects (Premiere gets them baked in), and how to open it (the README has the steps). Films made before this version
+photos), shapes and lines are separate live layers in After Effects, glows and animations are their own pixel layers (Premiere
+gets each scene baked in), and how to open it (the README has the steps). Films made before this version
 come out as one layer; say so.
 
 ## Walking someone through opening it
@@ -54,10 +57,13 @@ one plain step at a time, naming the exact file:
 Ask them to tell you what they see after each step; no jargon.
 
 ## Know the limits
-- Words and image files are separate layers in After Effects; shapes and effects drawn in code are pixels inside the scene.
-  An image stays inside the scene art when it is cropped, blended, filtered, shadowed or mirrored, or when something is
-  drawn over it (the export checks each scene and says so). A generic font (sans-serif) becomes
+- Every scene is checked: the export rebuilds it from its layers exactly as After Effects will and compares it with the
+  film. A scene that would not match (the drawing order changes mid-scene, more than 150 live items or 16 pixel layers, or
+  a drawing that cannot be separated) falls back to images and words over one scene art layer, and the run says so
+  ("not fully layered") for that scene.
+- Glows, gradients, shadows and animations are pixel layers: they move, fade and re-time as a whole, but their inside is
+  not editable. A ring or line that grows can come out as a few layers in a row (one per change in its shape).
+- A generic font (sans-serif) becomes
   Arial; a brand font needs installing from the client's fonts. Check line breaks on the first frame: browser and AE text
   metrics differ slightly.
-- Lottie animations and canvas effects are inside the scene layers.
 - More detail on app quirks: `references/premiere-ae-notes.md`. The package format: `references/manifest.md`.
