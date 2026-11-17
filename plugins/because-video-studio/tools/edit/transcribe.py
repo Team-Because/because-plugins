@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Word-level transcript of any video/audio, locally with faster-whisper (no upload, no key, Mac/Windows/Linux).
 
-  <studio python> tools/edit/transcribe.py <media> [--lang auto|en|hi|gu|...] [--out DIR] [--vocab "Brand, Name"] [--model small]
+  <studio python> tools/edit/transcribe.py <media> [--lang auto|en|hi|gu|...] [--out DIR] [--vocab "Brand, Name"] [--model large-v3-turbo]
 
 Writes to DIR (default: next to the media, in <name>_transcript/):
   transcript.json  {source, language, duration, words:[{w,start,end}], segments:[{start,end,text}]}
   transcript.md    one readable line per sentence: [mm:ss.s-mm:ss.s] text   (read this to pick moments)
   transcript.srt   subtitles for upload to YouTube/LinkedIn etc.
-The model downloads once, on first use, into the studio folder (.models/).
+The model (large-v3-turbo, ~1.6 GB) downloads once, on first use, into the studio folder (.models/).
 """
 import argparse, json, os, re, subprocess, sys
 from pathlib import Path
@@ -24,7 +24,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("media"); ap.add_argument("--lang", default="auto"); ap.add_argument("--out")
     ap.add_argument("--vocab", default="", help='names/brands to spell right, e.g. "ElevenLabs, HyperFrames"')
-    ap.add_argument("--model", default="small")
+    ap.add_argument("--model", default="large-v3-turbo")   # multilingual (Hindi, Gujarati...); "small" is weak outside English
     a = ap.parse_args()
     src = Path(a.media).expanduser().resolve()
     out = Path(a.out) if a.out else src.parent / f"{src.stem}_transcript"

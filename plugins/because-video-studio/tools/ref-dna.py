@@ -105,10 +105,10 @@ if wav and beats:
 # ---- voice ----
 words = []
 if wav and not a.no_voice:
-    # word timings with faster-whisper (runs on Mac and Windows; the model downloads once on first use)
+    # word timings with faster-whisper large-v3-turbo, language detected (Mac and Windows; the model downloads once, ~1.6 GB, into .models/)
     try:
         from faster_whisper import WhisperModel
-        segs, _ = WhisperModel('small', device='cpu', compute_type='int8').transcribe(wav, word_timestamps=True)
+        segs, _ = WhisperModel('large-v3-turbo', device='cpu', compute_type='int8', download_root=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.models')).transcribe(wav, word_timestamps=True)
         ws = [w for s in segs for w in (s.words or [])]
         words = [{'w': w.word.strip(), 't': round(float(w.start), 3)} for w in ws]
         json.dump([{'text': w.word.strip(), 'start': w.start, 'end': w.end} for w in ws], open(os.path.join(out, 'transcript.json'), 'w'))

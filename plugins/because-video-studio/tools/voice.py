@@ -39,7 +39,7 @@ def whisper_words(path):
     global _whisper
     from faster_whisper import WhisperModel
     if _whisper is None:
-        _whisper = WhisperModel('small', device='cpu', compute_type='int8', download_root=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.models'))
+        _whisper = WhisperModel('large-v3-turbo', device='cpu', compute_type='int8', download_root=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.models'))
     segs, _ = _whisper.transcribe(path, word_timestamps=True, vad_filter=False)
     return [(w.word.strip(), w.start, w.end) for s in segs for w in (s.words or [])]
 
