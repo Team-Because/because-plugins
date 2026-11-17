@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // SessionStart hook. Whatever it prints goes to Claude as context; it prints nothing when all is well.
 // 1. Setup never ran, or the plugin was updated since: tell Claude to run setup before any video.
-import { existsSync, readFileSync } from 'node:fs';
+// 2. The ElevenLabs key from the plugin's options (secure storage) is copied into the studio's .env, where the tools read it.
+import { existsSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -26,6 +27,16 @@ let cfg;
 try { cfg = JSON.parse(readFileSync(CONFIG, 'utf8')); } catch {
   console.log('[because-video-studio] The setup record is unreadable. Offer to run /because-video-studio:setup again.');
   process.exit(0);
+}
+const key = (process.env.CLAUDE_PLUGIN_OPTION_ELEVENLABS_API_KEY || '').trim();
+if (key && cfg.workspace && existsSync(cfg.workspace)) {
+  const envFile = join(cfg.workspace, '.env');
+  const lines = existsSync(envFile) ? readFileSync(envFile, 'utf8').split(/\r?\n/).filter((l) => l && !l.startsWith('ELEVEN_LABS_API_KEY=')) : [];
+  const next = [...lines, `ELEVEN_LABS_API_KEY=${key}`].join('\n') + '\n';
+  if (!existsSync(envFile) || readFileSync(envFile, 'utf8') !== next) {
+    writeFileSync(envFile, next);
+    try { chmodSync(envFile, 0o600); } catch {}
+  }
 }
 if (cfg.setup_version !== version || !cfg.done) {
   const ask = cfg.music === undefined

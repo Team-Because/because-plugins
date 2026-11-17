@@ -18,12 +18,23 @@ belongs to a client, keep it under `clients/<client>/`.
 `<python> <workspace>/tools/edit/probe.py <file-or-folder> --out probe` gives length, size, frame rate, audio, and a 12-frame
 contact sheet per video in `probe/sheets/`. Look at the sheet before deciding anything (`--scenes` adds a shot list).
 
+## Transcripts: the person picks the engine
+`transcribe.py` has two engines. Start with Whisper unless the person asks for ElevenLabs; they listen and decide.
+- **Whisper** (default, `--engine whisper`): free, on this computer, nothing uploaded. Good for English and Hindi. The first
+  run downloads the model once (about 3 GB, several minutes); after that a 1-minute clip takes 2-3 minutes on a laptop.
+- **ElevenLabs** (`--engine elevenlabs`): far better for Gujarati and Gujarati-English mix, done in seconds. The sound is
+  uploaded to ElevenLabs and costs about $0.20 (under Rs 20) per hour of audio, from their ElevenLabs plan. Name the cost and get a yes.
+
+After every transcript, show the first few lines and say which engine made it. If the language is Gujarati (or the lines
+read wrong), add one line: "Gujarati usually comes out better with ElevenLabs (a few rupees for this clip). Switch?" Never
+switch on your own. If ElevenLabs stops with `NO_KEY`, walk them through `references/elevenlabs-key.md`, one step at a time.
+
 ## The jobs
 | The person says | Do this |
 |---|---|
 | **"Cut the pauses / dead air"** | Ask: natural or punchy. `silence.py <file> --edl cut.json` (natural: defaults; punchy: `--min-gap 0.25 --margin 0.08`), then `edl.py cut.json`. Jump cuts alternate a slight zoom so they read as intentional. Check frames and the transcript at each joint: never cut inside a word |
-| **"Remove mistakes and restarts"** | `transcribe.py <file>`, read `<file>_transcript/transcript.md`, propose the keep-list in plain times ("keep 0:04-0:11, 0:19-0:31"), get a yes, write it as clips in an edl.json, render with `edl.py` |
-| **"Add captions"** | Ask the style: bold 2-3 words, or a clean line. Bold: put `"captions": {"style": "bold", "max_words": 3}` in the edl.json and render with `edl.py` (they stay off the bottom 20%). A plain subtitle file only: `transcribe.py` writes `transcript.srt`; to burn it in, `ffmpeg -i in.mp4 -vf subtitles=transcript.srt out.mp4`. Check names and brand words in the transcript first (`--vocab "Brand, Name"` helps) |
+| **"Remove mistakes and restarts"** | `transcribe.py <file>` (engine: see above), read `<file>_transcript/transcript.md`, propose the keep-list in plain times ("keep 0:04-0:11, 0:19-0:31"), get a yes, write it as clips in an edl.json, render with `edl.py` |
+| **"Add captions"** | Ask the style: bold 2-3 words, or a clean line. Bold: put `"captions": {"style": "bold", "max_words": 3}` in the edl.json and render with `edl.py` (they stay off the bottom 20%). A plain subtitle file only: `transcribe.py` (engine: see above) writes `transcript.srt`; to burn it in, `ffmpeg -i in.mp4 -vf subtitles=transcript.srt out.mp4`. Check names and brand words in the transcript first (`--vocab "Brand, Name"` helps) |
 | **"Make it vertical / for Reels, Shorts"** | An edl.json with `"format": "9x16"` and `"crop": "face"` keeps the speaker centred as they move. Other sizes: 16x9 YouTube, 4x5 or 1x1 feeds. No face (product, screen): `"crop": "center"` or `"blur"` (the whole picture over a blurred fill) |
 | **"Trim the start/end"** | `ffmpeg -ss 00:00:03 -to 00:00:41 -i in.mp4 -c:v libx264 -c:a aac out.mp4` (re-encode for exact cuts) |
 | **"Join these clips"** | One edl.json listing each file as a clip, in order; it matches size and frame rate itself |
