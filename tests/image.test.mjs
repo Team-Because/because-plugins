@@ -15,8 +15,8 @@ const unix = process.platform !== 'win32';
 function fakeCodex(dir, behaviour) {
   const f = join(dir, 'fake-codex');
   writeFileSync(f, `#!/usr/bin/env node
-const a = process.argv.slice(2), dir = a[a.indexOf('-C') + 1], prompt = a.at(-1);
-require('fs').writeFileSync(require('path').join(dir, 'prompt-seen.txt'), prompt);
+const a = process.argv.slice(2), dir = a[a.indexOf('-C') + 1], prompt = require('fs').readFileSync(0, 'utf8');
+require('fs').writeFileSync(require('path').join(dir, 'prompt-seen.txt'), prompt + ' last-arg:' + a.at(-1));
 ${behaviour}
 `);
   chmodSync(f, 0o755);
@@ -40,7 +40,9 @@ require('fs').writeFileSync(require('path').join(dir, file), Buffer.alloc(4096, 
   const r = make(codex, out);
   assert.equal(r.status, 0, r.stderr + r.stdout);
   assert.ok(existsSync(join(out, 'option-1.png')) && existsSync(join(out, 'option-2.png')));
-  assert.match(readFileSync(join(out, 'prompt-seen.txt'), 'utf8'), /sunlit classroom/);
+  const seen = readFileSync(join(out, 'prompt-seen.txt'), 'utf8');
+  assert.match(seen, /sunlit classroom/);
+  assert.match(seen, /last-arg:-$/, 'the prompt goes in on stdin, never on the command line');
 });
 
 test('a Codex that is not signed in gives a plain next step, not a stack trace', { skip: !unix && 'the stand-in is a Unix script' }, () => {

@@ -12,9 +12,9 @@
 //     Crops the picture to the exact size and puts the real logo and the words on top in the brand's font and colour.
 //
 // CODEX overrides the codex command (tests use a stand-in).
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, mkdirSync, statSync } from 'node:fs';
-import { resolve, join, extname } from 'node:path';
+import { resolve, join, dirname, extname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const SIZES = { '1x1': [1080, 1080], '4x5': [1080, 1350], '9x16': [1080, 1920], '16x9': [1920, 1080] };
@@ -30,14 +30,26 @@ export function codexPrompt(prompt, size, file) {
   ].join('\n');
 }
 
+// Codex is always started without a shell, so nothing in a prompt or a folder name can run as a command. On Windows npm
+// installs a .cmd shim, which only starts through cmd.exe: run the script behind it with node instead.
+export function codexCommand() {
+  if (process.env.CODEX) return [process.env.CODEX, []];
+  if (process.platform !== 'win32') return ['codex', []];
+  for (const path of (spawnSync('where', ['codex'], { encoding: 'utf8' }).stdout || '').split(/\r?\n/).filter(Boolean)) {
+    if (/\.exe$/i.test(path)) return [path, []];
+    const js = join(dirname(path), 'node_modules', '@openai', 'codex', 'bin', 'codex.js');
+    if (existsSync(js)) return [process.execPath, [js]];
+  }
+  return ['codex.exe', []];
+}
+
 function runCodex(dir, prompt, refs) {
-  const cmd = process.env.CODEX || 'codex';
-  const a = ['exec', '--skip-git-repo-check', '-s', 'workspace-write', '-C', dir, ...refs.flatMap((r) => ['-i', r]), prompt];
+  const [cmd, pre] = codexCommand();
+  // The prompt goes in on stdin ("-"), never on the command line
+  const a = [...pre, 'exec', '--skip-git-repo-check', '-s', 'workspace-write', '-C', dir, ...refs.flatMap((r) => ['-i', r]), '-'];
   return new Promise((done) => {
-    const win = process.platform === 'win32';   // npm installs codex as a .cmd shim on Windows, which needs the shell
-    const q = (x) => `"${String(x).replace(/"/g, '\\"')}"`;
-    const io = { stdio: ['ignore', 'pipe', 'pipe'] };   // codex reads extra input from an open stdin and would wait for it
-    const p = win ? spawn(q(cmd), a.map(q), { shell: true, ...io }) : spawn(cmd, a, io);
+    const p = spawn(cmd, a, { stdio: ['pipe', 'pipe', 'pipe'], shell: false });
+    p.stdin.end(prompt);
     let log = '';
     p.stdout.on('data', (d) => (log += d)); p.stderr.on('data', (d) => (log += d));
     const timer = setTimeout(() => p.kill(), 6 * 60 * 1000);
