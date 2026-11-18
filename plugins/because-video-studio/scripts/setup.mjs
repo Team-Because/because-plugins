@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // One-time setup for because-video-studio, on Mac and Windows. Safe to re-run: it only installs what is missing.
-//   node setup.mjs [--check] [--workspace <dir>] [--skip-test] [--music | --no-music] [--connectors higgsfield,elevenlabs | none]
+//   node setup.mjs [--check] [--workspace <dir>] [--skip-test] [--music | --no-music] [--codex | --no-codex] [--connectors higgsfield,elevenlabs | none]
 // Builds a studio workspace (default Documents/Because Studio) with the tree the tools expect:
 //   tools/ templates/ library/ prompts/ recipes/ studio/ (copied from the plugin) + node_modules/ + .venv/ + clients/
 // Prints OK / WARN / FAIL lines; the setup skill explains them to the person in plain words.
@@ -32,8 +32,10 @@ const VOX = args.includes('--vox');
 //   music       the free real-instrument music engine on this computer (about 220 MB); without it music comes from the
 //               built-in synth score (tools/score.py), so every video still has music
 //   connectors  which Claude connectors they use (higgsfield, elevenlabs); both optional, Claude checks them at video time
+//   codex       images with their ChatGPT subscription through the Codex CLI (the image skill); they sign in once
 const MUSIC = VOX || (args.includes('--music') || (config.music === true && !args.includes('--no-music')));
 const CONNECTORS = (opt('connectors') ?? (config.connectors ?? []).join(',')).split(',').map((x) => x.trim().toLowerCase()).filter((x) => x && x !== 'none');
+const CODEX = args.includes('--codex') || (config.codex === true && !args.includes('--no-codex'));
 const VOICE = args.includes('--voice') || VOX;   // vox uses the voice tools and their torch for the cut-out
 const VPY = WIN ? join(WS, '.venv', 'Scripts', 'python.exe') : join(WS, '.venv', 'bin', 'python');
 
@@ -44,7 +46,7 @@ const bad = (t, fix = '') => { fails.push(t); console.log(`  FAIL ${t}${fix ? `\
 const warn = (t) => { warns.push(t); console.log(`  WARN ${t}`); };
 // On Windows, npm and npx are .cmd files that only start through the shell, and the shell does not quote: every argument
 // is quoted here so a folder like "Because Studio" stays one argument. Everything else starts directly, with no shell.
-const SHIMS = new Set(['npm', 'npx']);
+const SHIMS = new Set(['npm', 'npx', 'codex']);
 const q = (x) => (/[\s"&|<>^]/.test(x) ? `"${String(x).replace(/"/g, '\\"')}"` : String(x));
 const run = (cmd, a, o = {}) => (WIN && SHIMS.has(cmd)
   ? spawnSync(q(cmd), a.map(q), { encoding: 'utf8', shell: true, ...o })
@@ -53,7 +55,7 @@ const has = (cmd) => run(WIN ? 'where' : 'which', [cmd]).status === 0;
 
 function refreshPath() {
   const extra = WIN
-    ? ['C:\\Program Files\\nodejs', join(process.env.LOCALAPPDATA ?? '', 'Microsoft', 'WinGet', 'Links'), join(homedir(), '.local', 'bin')]
+    ? ['C:\\Program Files\\nodejs', join(process.env.APPDATA ?? '', 'npm'), join(process.env.LOCALAPPDATA ?? '', 'Microsoft', 'WinGet', 'Links'), join(homedir(), '.local', 'bin')]
     : ['/opt/homebrew/bin', '/usr/local/bin', join(homedir(), '.local', 'bin')];
   for (const p of extra) if (existsSync(p) && !process.env.PATH.split(WIN ? ';' : ':').includes(p)) process.env.PATH += (WIN ? ';' : ':') + p;
 }
@@ -184,6 +186,24 @@ if (VOX) {
   mimp.status === 0 ? ok('BiRefNet cut-out') : bad('the cut-out model did not install', 'Run setup with the vox step again.');
 }
 
+if (CODEX) {
+  say('images  Images with ChatGPT (Codex)');
+  if (!CHECK && !has('codex')) {
+    console.log('  installing Codex from OpenAI (about a minute)...');
+    run('npm', ['install', '-g', '@openai/codex'], { stdio: 'inherit' });
+    refreshPath();
+    // npm cannot write its global folder on some Macs (Node from the nodejs.org installer): OpenAI's own installer instead
+    if (!has('codex') && MAC) run('sh', ['-c', 'curl -fsSL https://chatgpt.com/codex/install.sh | sh'], { stdio: 'inherit', env: { ...process.env, CODEX_NON_INTERACTIVE: 'true' } });
+    refreshPath();
+  }
+  if (has('codex')) {
+    const v = run('codex', ['--version']), st = run('codex', ['login', 'status']);
+    ok(`Codex ${(v.stdout || '').trim().replace(/^codex-cli /, '')}`);
+    /logged in/i.test(`${st.stdout}${st.stderr}`) ? ok('Codex signed in with ChatGPT')
+      : warn('Codex is installed but not signed in yet: the setup skill signs you in with your ChatGPT account (codex login)');
+  } else bad('Codex did not install', 'Run setup again; if it repeats, share the lines above with the plugin owner.');
+}
+
 say('5/6  Connectors');
 console.log(`  chosen: ${CONNECTORS.length ? CONNECTORS.join(', ') : 'none'} (Claude connectors, optional: the setup skill checks they are connected)`);
 
@@ -198,7 +218,7 @@ if (!CHECK && !args.includes('--skip-test') && !fails.length) {
 
 if (!CHECK) {
   mkdirSync(CONFIG_DIR, { recursive: true });
-  writeFileSync(CONFIG, JSON.stringify({ ...config, workspace: WS, music: MUSIC, connectors: CONNECTORS, setup_version: VERSION, plugin_root: PLUGIN, os: platform(), done: !fails.length }, null, 2));
+  writeFileSync(CONFIG, JSON.stringify({ ...config, workspace: WS, music: MUSIC, codex: CODEX, connectors: CONNECTORS, setup_version: VERSION, plugin_root: PLUGIN, os: platform(), done: !fails.length }, null, 2));
 }
 console.log(`\n${fails.length ? `NOT READY: ${fails.length} problem(s)` : 'READY'}${warns.length ? `, ${warns.length} note(s)` : ''}. Workspace: ${WS}`);
 process.exit(fails.length ? 1 : 0);

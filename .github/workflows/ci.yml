@@ -2,7 +2,7 @@
 #   checks:  every push and pull request, Linux + Windows, about a minute: tests and plugin validation.
 #   evals are not here: they run on the maintainer's computer before every push (.githooks/pre-push).
 #   install: every release tag (v*) or by hand, on a clean Mac and a clean Windows machine: the real setup, a 3 s test
-#            render, a new client, a film shipped in one format and its Premiere/After Effects export. Heavier (several GB),
+#            render, a new client, a film shipped in one format and its Premiere/After Effects export, Codex for images. Heavier (several GB),
 #            so it does not run on every push. Tick "vox" when running by hand to also install the vox tools.
 name: ci
 
@@ -78,7 +78,9 @@ jobs:
         if: runner.os == 'Windows'
         run: choco install ffmpeg -y --no-progress
       - name: Setup, as a person would run it
-        run: node "$PLUGIN/scripts/setup.mjs" --workspace "$RUNNER_TEMP/Because Studio" --music --connectors none $VOX_FLAG
+        run: node "$PLUGIN/scripts/setup.mjs" --workspace "$RUNNER_TEMP/Because Studio" --music --codex --connectors none $VOX_FLAG
+      - name: Codex installed for images (sign-in is personal, so not checked here)
+        run: codex --version
       - name: A client, a film shipped, an editor package
         run: |
           cd "$RUNNER_TEMP/Because Studio"

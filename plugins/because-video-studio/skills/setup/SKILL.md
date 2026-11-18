@@ -1,6 +1,6 @@
 ---
 name: setup
-description: One-time setup of the Because Video Studio on this computer (Mac or Windows) - installs the free tools, builds the studio folder, asks which optional extras they want (real-instrument music on this computer, ElevenLabs voiceovers, Higgsfield generated shots) and connects them, then renders a 3 second test clip. Use when someone types setup, says "set up the video studio", "set up the video studio on my computer", "get my computer ready for videos", "install the video studio", "set up because video studio", "it says setup has not run", "the video tools are not working", "repair my studio", "add ElevenLabs to my video studio", "add Higgsfield", "add the music engine", or when the session note says setup is missing or out of date. Also use before the first video on a new computer.
+description: One-time setup of the Because Video Studio on this computer (Mac or Windows) - installs the free tools, builds the studio folder, asks which optional extras they want (real-instrument music on this computer, images with their ChatGPT subscription through Codex, ElevenLabs voiceovers, Higgsfield generated shots) and connects them, then renders a 3 second test clip. Use when someone types setup, says "set up the video studio", "set up the video studio on my computer", "get my computer ready for videos", "install the video studio", "set up because video studio", "it says setup has not run", "the video tools are not working", "repair my studio", "add ElevenLabs to my video studio", "add Higgsfield", "add the music engine", "add image generation", "set up Codex", "connect my ChatGPT for images", or when the session note says setup is missing or out of date. Also use before the first video on a new computer.
 ---
 
 # Setup
@@ -32,19 +32,22 @@ Then ask them to close and reopen Claude if `node` is still not found (the new P
 2. **Which extras do you want?** (multiSelect; every one is optional, and a video works with none of them)
    - **Real-instrument music on this computer** (Recommended): free piano, strings and harp music made by Claude, about 220 MB
      once. Without it, videos still get music from the simpler built-in score.
+   - **Images with your ChatGPT subscription** (Recommended if they have a paid ChatGPT plan):
+     posts, carousels, stories and banners made through Codex, OpenAI's tool, on their own ChatGPT plan. No extra cost; they
+     sign in once in the browser.
    - **ElevenLabs voiceovers**: for people who have an ElevenLabs login (the video content team). Without it, videos carry
      their words on screen.
    - **Higgsfield generated shots**: AI images and clips, for people with a Higgsfield login. Without it, Claude builds every
      shot in code.
-Skip a question whose answer is already in the config (`workspace`, `music`, `connectors`) unless they ask to change it.
+Skip a question whose answer is already in the config (`workspace`, `music`, `codex`, `connectors`) unless they ask to change it.
 Never ask for passwords or API keys; nobody needs one.
 
 ## 4. Run it
 Run in the background and keep them posted every minute or two in plain words ("installing the render engine..."):
 ```
-node "${CLAUDE_PLUGIN_ROOT}/scripts/setup.mjs" --workspace "<their folder>" --music|--no-music --connectors elevenlabs,higgsfield|none
+node "${CLAUDE_PLUGIN_ROOT}/scripts/setup.mjs" --workspace "<their folder>" --music|--no-music --codex|--no-codex --connectors elevenlabs,higgsfield|none
 ```
-Pass `--music` or `--no-music` and `--connectors` from their answers; the script remembers them for every later run.
+Pass `--music` or `--no-music`, `--codex` or `--no-codex`, and `--connectors` from their answers; the script remembers them for every later run.
 Lines starting `OK` are done, `WARN` are optional, `FAIL` need action. The script is safe to repeat.
 - Mac without Homebrew, or Windows without winget: say the one thing to install (Homebrew from https://brew.sh, or Windows
   "App Installer" from the Microsoft Store), offer to wait, then run again.
@@ -53,7 +56,17 @@ Lines starting `OK` are done, `WARN` are optional, `FAIL` need action. The scrip
 - Never ask for passwords. If the computer asks for one, say that is normal when installing software.
 - `--check` reports without installing anything, for "is my studio OK?".
 
-## 5. Connectors they picked (skip any they did not pick)
+## 5. ChatGPT sign-in for images (only if they picked images)
+If the script printed `Codex is installed but not signed in`, sign them in now:
+1. Say: "A browser window will open. Sign in with the ChatGPT account you use for work, then come back here."
+2. Run `codex login` (it waits until the browser sign-in finishes; give it up to 5 minutes). If no browser opens, run
+   `codex login --device-auth` instead: it prints a short code and a web address; tell them to open the address, type the
+   code and sign in.
+3. Check with `codex login status`: it must say "Logged in using ChatGPT". Then say images are ready.
+Their ChatGPT plan must include Codex (paid plans do; check at chatgpt.com if unsure). If the sign-in says the plan has no Codex,
+say so in one line; everything else in the studio still works.
+
+## 6. Connectors they picked (skip any they did not pick)
 Look through your available tools for each one they chose.
 - **ElevenLabs** picked but no ElevenLabs tools: "To finish voiceovers: in Claude, open Settings, then Connectors, find
   ElevenLabs, click Connect and sign in with your ElevenLabs login. Then start a new session." Until then videos use on-screen text.
@@ -62,7 +75,7 @@ Look through your available tools for each one they chose.
 They can add any extra later by saying "add ElevenLabs to my video studio" or "add the music engine": run setup again with
 the new choice.
 
-## 6. Finish
+## 7. Finish
 Show the test clip path from the script and tell them they are ready, with three things they can say:
 "Set up a new client called <name>, website <url>", "Make a 15 second launch reel for <client>",
-"Make a festive wish for <client> for Diwali". Then stop.
+"Make a festive wish for <client> for Diwali", and if they picked images, "Make a post for <client> about <topic>". Then stop.

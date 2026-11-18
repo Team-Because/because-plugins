@@ -42,8 +42,9 @@ Log the stage row in `docs/ledger.md`: `| DD-MM-YYYY HH:MM | intake | <min> | ..
 
 ## 2 · Pitch · touch 1
 Three concepts, each one still and one line. Build stills from the engine first (`node tools/stills.mjs <video>/index.html
---times ...`): free and fast. Use a Higgsfield still only when the look needs material code cannot draw, and only after naming
-the price and getting a yes.
+--times ...`): free and fast. When the look needs material code cannot draw (a photo-real scene, texture, a backdrop),
+generate it with Codex on their ChatGPT plan first (`node tools/image.mjs make`, see the image skill; no extra cost, about a
+minute). A Higgsfield still only when Codex is not set up or cannot reach the look, after naming the price and getting a yes.
 Put the three side by side in `docs/variants.png` and open it.
 
 Before showing, check each concept against `studio/taste.md` and say so in one line each:
