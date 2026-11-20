@@ -4,12 +4,14 @@
 # reference video but it may not apply for <the brand>". Every reference-based video carries docs/concept-map.yaml; this check
 # refuses it unless:
 #   1. every beat says what the reference shows, the ROLE it plays there, and the client's own equivalent;
-#   2. every client equivalent has a source: `asset: <path that exists>` or `fact: <text found in a listed facts file>`;
+#   2. every client equivalent has a source: `asset: <path that exists>`, `fact: <text found in a listed facts file>` or
+#      `footage: <path>@<in>-<out>` (the editor's own take: the file exists and the range fits inside it; a photo takes any
+#      range as its hold time). `gap: <what to shoot>` marks a beat with no take yet: shown on the storyboard, refused here;
 #   3. no reference object (reference_nouns) appears in the client version, unless keeps_reference_object is true and a
 #      reason says why its role is genuinely the same for the client;
 #   4. the beats cover the reference from start to end (gaps under 0.5 s).
 # tools/ship.mjs runs this for any film whose code points at refs/. Template: templates/concept-map.yaml.
-import sys, os, re, json
+import sys, os, re, json, subprocess
 import yaml
 
 p = sys.argv[1]; base = os.path.dirname(os.path.dirname(os.path.abspath(p)))      # the video folder
@@ -25,6 +27,21 @@ for f in m.get('client_facts', []):
     r = resolve(f) or resolve(os.path.join(root, 'brand', 'facts-cache', os.path.basename(f)))   # local copy when a share is offline
     if r is None: fails.append(f'facts file not found (and no copy in brand/facts-cache): {f}')
     else: facts_text += open(r, errors='ignore').read().lower() + '\n'
+VIDEO = ('.mp4', '.mov', '.m4v', '.mkv', '.avi', '.webm', '.mts', '.m2ts', '.mxf')
+def footage(tag, spec):
+    path, _, rng = spec.rpartition('@')
+    m = re.fullmatch(r'\s*([0-9.]+)\s*-\s*([0-9.]+)\s*', rng)
+    if not path or not m: return f'{tag}: footage must be <path>@<in>-<out> ({spec[:60]})'
+    f = resolve(path.strip())
+    if f is None: return f'{tag}: footage not found: {path.strip()}'
+    a, z = float(m.group(1)), float(m.group(2))
+    if z <= a: return f'{tag}: footage range {a}-{z} s is empty or backwards'
+    if f.lower().endswith(VIDEO):
+        r = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], capture_output=True, text=True)
+        try: dur = float(r.stdout.strip())
+        except ValueError: return f'{tag}: could not read the footage (ffprobe): {path.strip()}'
+        if z > dur + 0.05: return f'{tag}: footage range {a}-{z} s runs past the end of the clip ({dur:.2f} s)'
+    return None
 norm = lambda s: re.sub(r'[^a-z0-9 ]+', ' ', s.lower())
 beats = m.get('beats') or []
 if not beats: fails.append('no beats')
@@ -42,7 +59,12 @@ for i, b in enumerate(beats, 1):
             # the exact phrase first (numeric facts like "0-40 km/hr in 2.8 s" are all short words), then most of its words
             hit = 1.0 if phrase and phrase in ' '.join(norm(facts_text).split()) else sum(w in facts_text for w in words) / max(1, len(words))
             if hit < 0.8: fails.append(f'{tag}: fact not found in the facts files ({hit:.0%} of its words): {src[5:].strip()[:70]}')
-        elif src: fails.append(f'{tag}: source must start with asset: or fact: ({src[:40]})')
+        elif src.startswith('footage:'):
+            err = footage(tag, src[8:].strip())
+            if err: fails.append(err)
+        elif src.startswith('gap:'):
+            fails.append(f'{tag}: is a gap with no take yet (shoot: {src[4:].strip()[:80]})')
+        elif src: fails.append(f'{tag}: source must start with asset:, fact: or footage: ({src[:40]})')
     shown = ' ' + norm(str(b.get('client_shows', ''))) + ' '
     reused = [n for n in b.get('reference_nouns') or [] if re.search(r'\b' + re.escape(n.lower().rstrip('s')) + r's?\b', shown)]
     if reused and not (b.get('keeps_reference_object') and str(b.get('reason') or '').strip()):
@@ -55,6 +77,8 @@ if ref_dna:
         end = max(end, z)
     if dur - end > 0.5: fails.append(f'beats stop at {end:.2f} s; the reference runs to {dur:.2f} s')
 elif m.get('reference'): fails.append(f"reference has no dna/dna.json (run tools/ref-dna.py on {m.get('reference')})")
-print(('FAIL' if fails else 'PASS') + f' concept map {os.path.relpath(p)}: {len(beats)} beats')
+try: shown_p = os.path.relpath(p)
+except ValueError: shown_p = p                                                    # another drive on Windows
+print(('FAIL' if fails else 'PASS') + f' concept map {shown_p}: {len(beats)} beats')
 for f in fails: print('  - ' + f)
 sys.exit(1 if fails else 0)
