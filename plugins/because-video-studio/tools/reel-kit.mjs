@@ -13,11 +13,28 @@
 //   approve <video>                        voice (ElevenLabs connector takes, or a key), music (free real-instrument score, or an
 //                                          ElevenLabs sound-alike when a key is set), mix, ship, compare, audio check
 // <video> is clients/<client>/videos/<slug>.
+//
+// From a B1 brief (format `b1-storyboard v1`) and the editor's own footage (skills/reel, "From a B1 brief"):
+//   brief <brief-file>                     parse the pasted brief: client, reference, reference_file, beats (JSON)
+//   ref <client> <url> --file-url <link> --brief <brief-file>
+//                                          as ref, and when the link cannot be downloaded (Instagram often refuses), download
+//                                          B1's own copy instead: https only, only the link written in the brief, 100 MB at most
+//   new <client> <slug> <ref-folder> --brief <brief-file>
+//                                          as new, plus B1's beats snapped to the measured cuts: docs/beats.json, the mapping
+//                                          in docs/ledger.md, and the video marked as cut from footage
+//   storyboard <video>                     (footage) a page to look at: the reference and our rough cut playing side by side, and
+//                                          per beat both moving, the words on the take, a gap as a "shoot this" frame
+//   cut <video> [--fmt 9x16] [--draft]     (footage) tools/footage-cut.py: the takes cut to the beats, the film's words on top
+//   check / approve                        (footage) timing of the cut against the reference; voice, music, mix, every format
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync } from 'node:fs';
-import { join, dirname, resolve, relative, basename } from 'node:path';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, createWriteStream, renameSync, rmSync, appendFileSync } from 'node:fs';
+import { join, dirname, resolve, relative, basename, extname } from 'node:path';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { STUDIO, PY, openFile } from './paths.mjs';
 import { launch, openFilm, autoSandbox } from './film-page.mjs';
+import { parseBrief, snapBeats, checkFileUrl, refId, MAX_REF_BYTES } from './b1-brief.mjs';
+import { storyboardHtml } from './storyboard-page.mjs';
 
 const T = (f) => join(STUDIO, 'tools', f);
 const [cmd, ...pos] = process.argv.slice(2);
@@ -37,12 +54,45 @@ const fmtFor = (w, h) => { const r = w / h; return r > 1.4 ? '16x9' : r > 0.95 ?
 const mapEnds = (vd) => existsSync(join(vd, 'docs', 'concept-map.yaml'))
   ? [...readFileSync(join(vd, 'docs', 'concept-map.yaml'), 'utf8').matchAll(/t: \[[^\]]*?,\s*([0-9.]+)\]/g)].map((x) => +x[1]) : [];
 
-function ref(client, url) {
+const flag = (k) => { const i = pos.indexOf('--' + k); return i >= 0 ? pos[i + 1] : undefined; };
+const readBrief = (f) => { const text = readFileSync(resolve(STUDIO, f), 'utf8'), b = parseBrief(text);
+  if (!b) throw new Error('no b1-storyboard v1 block with beats in that brief: use the normal path'); return { text, b }; };
+
+// B1's own copy of the reference: https only (every redirect too), only the link in the brief, 100 MB at most
+async function downloadCopy(url, briefText, dest) {
+  let u = checkFileUrl(url, briefText), res;
+  for (let hop = 0; ; hop++) {
+    res = await fetch(u, { redirect: 'manual' });
+    if (res.status < 300 || res.status >= 400) break;
+    const next = new URL(res.headers.get('location') ?? '', u);
+    if (next.protocol !== 'https:' || hop >= 5) throw new Error('the reference copy redirected somewhere that is not https');
+    u = next;
+  }
+  if (!res.ok) throw new Error(`could not download B1's copy (HTTP ${res.status}); it is valid for 7 days, so copy a fresh brief from B1`);
+  if (+(res.headers.get('content-length') ?? 0) > MAX_REF_BYTES) throw new Error("B1's copy is over 100 MB: not downloaded");
+  let n = 0; const tmp = dest + '.part';
+  const cap = new Transform({ transform(c, _e, cb) { n += c.length; cb(n > MAX_REF_BYTES ? new Error("B1's copy is over 100 MB: stopped") : null, c); } });
+  try { await pipeline(Readable.fromWeb(res.body), cap, createWriteStream(tmp)); } catch (e) { rmSync(tmp, { force: true }); throw e; }
+  renameSync(tmp, dest);
+  console.log(`downloaded B1's copy (${(n / 1048576).toFixed(1)} MB)`);
+}
+
+async function ref(client, url, { fileUrl, brief } = {}) {
   if (!/^https?:\/\//.test(url)) throw new Error('the reference must be a web link (Instagram, YouTube, ...)');
+  if (fileUrl && !brief) throw new Error('--file-url needs --brief <brief-file>: only the link in the pasted brief is downloaded');
+  const briefText = brief ? readFileSync(resolve(STUDIO, brief), 'utf8') : '';
   const ytdlp = (args, o) => run(PY, ['-m', 'yt_dlp', '--no-warnings', ...args], o);
-  const id = ytdlp(['--print', 'id', '--playlist-items', '1', url], { quiet: true }).stdout.trim().split('\n')[0].replace(/[^\w-]/g, '');
+  const idr = ytdlp(['--print', 'id', '--playlist-items', '1', url], { quiet: true, ok: !!fileUrl });
+  const id = (idr.status ? '' : idr.stdout.trim().split('\n')[0].replace(/[^\w-]/g, '')) || refId(url);
   const refDir = join(STUDIO, 'clients', client, 'refs', 'reels', id); mkdirSync(join(refDir, 'dna'), { recursive: true });
-  if (!existsSync(join(refDir, 'ref.mp4'))) { say(`downloading the reference ${id}`); ytdlp(['-q', '--playlist-items', '1', '-f', 'mp4/best', '-o', join(refDir, 'ref.%(ext)s'), url]); }
+  if (!existsSync(join(refDir, 'ref.mp4'))) {
+    say(`downloading the reference ${id}`);
+    const got = idr.status ? { status: 1 } : ytdlp(['-q', '--playlist-items', '1', '-f', 'mp4/best', '-o', join(refDir, 'ref.%(ext)s'), url], { ok: !!fileUrl });
+    if (got.status || !existsSync(join(refDir, 'ref.mp4'))) {
+      if (!fileUrl) throw new Error('the reference could not be downloaded');
+      say("the link could not be downloaded: using B1's copy from the brief"); await downloadCopy(fileUrl, briefText, join(refDir, 'ref.mp4'));
+    }
+  }
   if (!existsSync(join(refDir, 'dna', 'dna.json'))) { say('measuring the reference'); run(PY, [T('ref-dna.py'), refDir]); }
   sheet(refDir);
   console.log(`\nReference: ${relative(STUDIO, refDir)}  (read dna/dna.json and look at dna/sheet.jpg)`);
@@ -121,9 +171,9 @@ function pace(vd) {
     fonts: readdirSync(join(vd, 'fonts')) }, null, 1));
 }
 
-function timing(vd) {
-  const f = filmSpec(vd), [W, H] = SIZES[f.fmt], draft = join(vd, 'out', '.timing-draft.mp4');
-  run('node', [T('render.mjs'), join(vd, 'index.html'), '--fps', String(f.fps), '--dur', String(f.dur), '--w', String(Math.round(W / 4) * 2), '--h', String(Math.round(H / 4) * 2), '--q', `?fmt=${f.fmt}`, '--out', draft], { quiet: true });
+function timing(vd, cutFile) {   // cutFile: a reel cut from footage (tools/footage-cut.py), measured as it is
+  const f = filmSpec(vd), [W, H] = SIZES[f.fmt], draft = cutFile ?? join(vd, 'out', '.timing-draft.mp4');
+  if (!cutFile) run('node', [T('render.mjs'), join(vd, 'index.html'), '--fps', String(f.fps), '--dur', String(f.dur), '--w', String(Math.round(W / 4) * 2), '--h', String(Math.round(H / 4) * 2), '--q', `?fmt=${f.fmt}`, '--out', draft], { quiet: true });
   run(PY, [T('ref-dna.py'), draft, '--out', join(vd, 'docs', 'dna-draft'), '--no-voice', '--no-clip', '--compare', f.s.refDir, '--stretch', String(f.k)], { quiet: true, ok: true });
   const dd = json(join(vd, 'docs', 'dna-draft', 'dna.json')), c = dd.compare ?? { checks: [] };
   const big = c.checks.find((x) => x.check.startsWith('big changes')), mot = c.checks.find((x) => x.check.startsWith('motion rises'));
@@ -180,6 +230,80 @@ async function storyboard(vd) {
   openFile(join(sb, 'storyboard.html'));
 }
 
+// ---- a reel cut from the editor's own footage (B1 brief path) ----
+const isFootage = (vd) => load(vd).mode === 'footage';
+const conceptMap = (vd) => JSON.parse(run(PY, ['-c', 'import yaml,json,sys; print(json.dumps(yaml.safe_load(open(sys.argv[1], encoding="utf-8"))))',
+  join(vd, 'docs', 'concept-map.yaml')], { quiet: true }).stdout);
+const IMG = /\.(jpe?g|png|webp|heic|heif|tiff?)$/i;
+
+function newFromBrief(vd, briefFile) {
+  const { text, b } = readBrief(briefFile), s = load(vd), d = json(join(s.refDir, 'dna', 'dna.json'));
+  writeFileSync(join(vd, 'docs', 'b1-brief.txt'), text);
+  const { beats, ledger } = snapBeats(b.beats, d.video.hard_cuts ?? [], d.video.duration);
+  writeFileSync(join(vd, 'docs', 'beats.json'), JSON.stringify({ say: b.say ?? '', b1_duration: b.duration, measured_duration: d.video.duration, beats }, null, 1));
+  Object.assign(s, { mode: 'footage', brief: 'docs/b1-brief.txt' }); save(vd, s);
+  const lines = [`\n## B1 beats snapped to the measured cuts (${new Date().toISOString().slice(0, 10)})`, ...ledger.map((l) => `- ${l}`)];
+  appendFileSync(join(vd, 'docs', 'ledger.md'), lines.join('\n') + '\n');
+  console.log(lines.join('\n'));
+  console.log(`\n${beats.length} beats in docs/beats.json (B1 said ${b.beats.length}; the reference is ${d.video.duration} s).`);
+}
+
+function footageStoryboard(vd) {   // the page is the stop: reference and our rough cut side by side, every beat moving
+  const s = load(vd), m = conceptMap(vd), k = s.stretch ?? 1, sb = join(vd, 'storyboard'), fmt = filmSpec(vd).fmt, fps = 30;
+  const [PW, PH] = SIZES[fmt].map((x) => Math.round(x / 6) * 2);   // a third of the frame, even numbers
+  for (const d of ['ref', 'take']) { rmSync(join(sb, d), { recursive: true, force: true }); mkdirSync(join(sb, d), { recursive: true }); }
+  const findFile = (p) => [p, join(vd, p), join(vd, '..', '..', p)].find((c) => existsSync(c));
+  const cover = `scale=${PW}:${PH}:force_original_aspect_ratio=increase,crop=${PW}:${PH},setsar=1`;
+  const enc = ['-an', '-r', String(fps), '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26', '-pix_fmt', 'yuv420p'];
+  const ff = (args, out) => run('ffmpeg', ['-v', 'error', '-y', ...args, ...enc, out], { quiet: true, ok: true }).status === 0;
+  const clip = (src, from, have, L, out) => IMG.test(src)
+    ? ff(['-loop', '1', '-framerate', String(fps), '-t', L.toFixed(3), '-i', src, '-vf', `${cover},zoompan=z='1+0.05*on/${Math.round(L * fps)}':d=1:s=${PW}x${PH}:fps=${fps}`, '-t', L.toFixed(3)], out)
+    : ff(['-ss', String(Math.max(0, from)), '-t', Math.min(have, L).toFixed(3), '-i', src, '-vf', `${cover},tpad=stop_mode=clone:stop_duration=${L.toFixed(3)}`, '-t', L.toFixed(3)], out);
+  const black = (L, out) => ff(['-f', 'lavfi', '-i', `color=c=black:s=${PW}x${PH}:r=${fps}:d=${L.toFixed(3)}`], out);
+  const poster = (mp4, L, out) => run('ffmpeg', ['-v', 'error', '-y', '-ss', (L / 2).toFixed(3), '-i', mp4, '-frames:v', '1', '-q:v', '4', out], { quiet: true, ok: true }).status === 0;
+  const beats = [...(m.beats ?? [])].sort((a, b) => a.t[0] - b.t[0]), out = [];
+  beats.forEach((b, i) => {
+    const n = String(i + 1).padStart(2, '0'), [a, z] = b.t, L = (z - a) * k, srcs = String(b.source ?? '').split(';').map((x) => x.trim());
+    const refClip = join(sb, 'ref', `${n}.mp4`);
+    ff(['-ss', String(a), '-t', (z - a).toFixed(3), '-i', join(s.refDir, 'ref.mp4'), '-vf', `${cover}${k !== 1 ? `,setpts=${k}*PTS` : ''},tpad=stop_mode=clone:stop_duration=${L.toFixed(3)}`, '-t', L.toFixed(3)], refClip);
+    poster(refClip, L, join(sb, 'ref', `${n}.jpg`));
+    const foot = srcs.find((x) => x.startsWith('footage:')), gap = srcs.find((x) => x.startsWith('gap:'));
+    const asset = srcs.filter((x) => x.startsWith('asset:')).map((x) => findFile(x.slice(6).trim())).find(Boolean);
+    const takeClip = join(sb, 'take', `${n}.mp4`), row = { t: [+(a * k).toFixed(2), +(z * k).toFixed(2)], line: b.client_line ?? '', role: b.role, reference_shows: b.reference_shows,
+      client_shows: b.client_shows, refImg: `ref/${n}.jpg`, refClip: `ref/${n}.mp4` };
+    let made = false;
+    if (foot) {
+      const p = foot.slice(8).trim().replace(/@[^@]*$/, ''), rng = foot.match(/@([0-9.]+)-([0-9.]+)\s*$/), f = findFile(p);
+      const x = rng ? +rng[1] : 0, y = rng ? +rng[2] : x + L;
+      made = !!f && clip(f, x, y - x, L, takeClip);
+      Object.assign(row, { kind: IMG.test(p) ? 'still' : 'footage', label: `${basename(p)}${rng && !IMG.test(p) ? `  ${x.toFixed(1)}–${y.toFixed(1)} s` : ''}` });
+    } else if (asset) {
+      made = clip(asset, 0, L, L, takeClip);
+      Object.assign(row, { kind: IMG.test(asset) ? 'code' : 'generated', label: basename(asset) });
+    } else if (gap) Object.assign(row, { kind: 'gap', shoot: gap.slice(4).trim(), label: 'No take yet' });
+    else Object.assign(row, { kind: 'code', label: 'Built in code' });
+    if (made) { poster(takeClip, L, join(sb, 'take', `${n}.jpg`)); Object.assign(row, { takeClip: `take/${n}.mp4`, takeImg: `take/${n}.jpg` }); }
+    else black(L, takeClip);   // the rough cut keeps its timing through a gap or a code-built beat
+    out.push(row);
+  });
+  for (const d of ['ref', 'take']) {   // one clip per beat, joined: both cuts run on the same clock
+    const list = join(sb, d, 'list.txt');
+    writeFileSync(list, out.map((_, i) => `file '${String(i + 1).padStart(2, '0')}.mp4'`).join('\n') + '\n');
+    run('ffmpeg', ['-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', '-movflags', '+faststart', join(sb, d, 'cut.mp4')], { quiet: true, ok: true });
+  }
+  writeFileSync(join(sb, 'storyboard.html'), storyboardHtml({ title: `${basename(vd)}: storyboard`, fmt, refCut: 'ref/cut.mp4', ourCut: 'take/cut.mp4', beats: out }));
+  const gaps = out.filter((b) => b.kind === 'gap').length;
+  console.log(`Storyboard: ${relative(STUDIO, join(sb, 'storyboard.html'))}  (${out.length} beats${gaps ? `, ${gaps} gap${gaps > 1 ? 's' : ''}` : ''})`);
+  openFile(join(sb, 'storyboard.html'));
+}
+
+function cut(vd, fmt, draft) {
+  const cc = run(PY, [T('concept-check.py'), join(vd, 'docs', 'concept-map.yaml')], { ok: true });
+  if (cc.status) throw new Error('the concept map does not pass yet (gaps or missing takes): fix it before cutting');
+  run(PY, [T('footage-cut.py'), relative(STUDIO, vd), ...(fmt ? ['--fmt', fmt] : []), ...(draft ? ['--draft'] : [])]);
+  return join(vd, 'out', `cut-${fmt ?? filmSpec(vd).fmt}.mp4`);
+}
+
 function approve(vd) {
   const f = filmSpec(vd), s = f.s;
   const scriptEnd = existsSync(join(vd, 'docs', 'script.json')) ? json(join(vd, 'docs', 'script.json')).end ?? 0 : 0;
@@ -198,10 +322,19 @@ function approve(vd) {
     say('music: real-instrument score made on this computer'); run(PY, a);
   }
   say('mix'); run(PY, [T('mix.py'), vd, '--dur', String(dur)]);
-  say('ship'); run('node', [T('ship.mjs'), join(vd, 'index.html')], { ok: true });
-  const finals = readdirSync(join(vd, 'out')).filter((x) => /-v\d+\.mp4$/.test(x)).sort((a, b) => +a.match(/-v(\d+)/)[1] - +b.match(/-v(\d+)/)[1]);
+  const versions = () => readdirSync(join(vd, 'out')).filter((x) => /-v\d+\.mp4$/.test(x)).sort((a, b) => +a.match(/-v(\d+)/)[1] - +b.match(/-v(\d+)/)[1]);
+  if (s.mode === 'footage') {   // cut every format from the takes, the film's words on top, then the mix
+    const fmts = [f.fmt, ...(s.formats ?? []).filter((x) => x !== f.fmt && SIZES[x])];
+    const v = 1 + Math.max(0, ...versions().map((x) => +x.match(/-v(\d+)\.mp4$/)[1]));
+    for (const fm of fmts) {
+      say(`cut ${fm}`); const c = cut(vd, fm, false);
+      run('ffmpeg', ['-v', 'error', '-y', '-i', c, '-i', join(vd, 'mix.wav'), '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart',
+        join(vd, 'out', `${s.client}-${basename(vd)}-${fm}-v${v}.mp4`)]);
+    }
+  } else { say('ship'); run('node', [T('ship.mjs'), join(vd, 'index.html')], { ok: true }); }
+  const finals = versions();
   if (!finals.length) throw new Error('ship produced no film: read its output above');
-  const fin = join(vd, 'out', finals.at(-1));
+  const fin = join(vd, 'out', s.mode === 'footage' ? finals.filter((x) => x.includes(`-${f.fmt}-`)).at(-1) : finals.at(-1));
   say('compare with the reference'); console.log(run(PY, [T('ref-dna.py'), fin, '--out', join(vd, 'docs', 'dna'), '--no-voice', '--compare', s.refDir, '--stretch', String(f.k)], { quiet: true, ok: true }).stdout.slice(-1500));
   say('audio check'); run(PY, [T('audio-check.py'), fin], { ok: true });
   s.stage = 'done'; s.final = relative(STUDIO, fin); save(vd, s);
@@ -209,7 +342,8 @@ function approve(vd) {
 }
 
 try {
-  if (cmd === 'ref') ref(pos[0], pos[1]);
+  if (cmd === 'brief') console.log(JSON.stringify(readBrief(pos[0]).b, null, 1));
+  else if (cmd === 'ref') await ref(pos[0], pos[1], { fileUrl: flag('file-url'), brief: flag('brief') });
   else if (cmd === 'new') {
     const [client, slug, refArg] = pos; const refDir = resolve(STUDIO, refArg);
     if (!existsSync(join(refDir, 'dna', 'dna.json'))) throw new Error('run "ref" first: the reference has no measurements yet');
@@ -217,16 +351,19 @@ try {
     const vd = join(STUDIO, 'clients', client, 'videos', slug);
     save(vd, { client, refDir, stretch: 1, stage: 'new', sfx: false });
     sheet(refDir); brandPack(client, vd); refPack(refDir, vd);
+    if (flag('brief')) newFromBrief(vd, flag('brief'));
     console.log(`\nVideo: ${relative(STUDIO, vd)}\nRead docs/brand-pack.md, docs/ref-pack.md, docs/asset-sheet.jpg and the reference frame sheet.`);
   }
   else if (cmd === 'pace') pace(vdOf(pos[0]));
+  else if (cmd === 'cut') cut(vdOf(pos[0]), flag('fmt'), pos.includes('--draft'));
   else if (cmd === 'check') {
     const vd = vdOf(pos[0]);
+    if (isFootage(vd)) process.exit(timing(vd, cut(vd, undefined, true)) ? 0 : 1);   // the cut itself, measured against the reference
     const c = run('node', [T('check.mjs'), join(vd, 'index.html'), '--no-sheets'], { ok: true });
     if (c.status) process.exit(1);
     process.exit(timing(vd) ? 0 : 1);
   }
-  else if (cmd === 'storyboard') await storyboard(vdOf(pos[0]));
+  else if (cmd === 'storyboard') { const vd = vdOf(pos[0]); if (isFootage(vd)) footageStoryboard(vd); else await storyboard(vd); }
   else if (cmd === 'approve') approve(vdOf(pos[0]));
-  else { console.error('usage: node tools/reel-kit.mjs ref|new|pace|check|storyboard|approve ...'); process.exit(1); }
+  else { console.error('usage: node tools/reel-kit.mjs brief|ref|new|pace|cut|check|storyboard|approve ...'); process.exit(1); }
 } catch (e) { console.error(e.message); process.exit(1); }
